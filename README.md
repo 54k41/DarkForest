@@ -1,6 +1,6 @@
 # ChatBox AI - OpenAI
 
-Chatbot web em **um único arquivo HTML** que conversa com a API da OpenAI. Basta abrir o arquivo no navegador, colar sua chave de API e começar a conversar — sem instalação, sem servidor, sem build.
+Chatbot web em **um único arquivo HTML** que  utiliza a API da OpenAI. Basta abrir o arquivo no navegador, importar sua chave de API e começar a conversar — sem instalação, sem servidor, sem complicação.
 
 ![HTML5](https://img.shields.io/badge/HTML5-single%20file-orange) ![OpenAI](https://img.shields.io/badge/API-OpenAI-green) ![pt--BR](https://img.shields.io/badge/idioma-pt--BR-blue)
 
@@ -8,7 +8,7 @@ Chatbot web em **um único arquivo HTML** que conversa com a API da OpenAI. Bast
 
 - 💬 Chat em tempo real com modelos GPT da OpenAI
 - 📄 Leitura e análise de **PDFs** anexados (via PDF.js)
-- 🤖 Seleção de modelo (GPT-4o, GPT-4o-mini e outros)
+- 🤖 Seleção de modelo (GPT-5.4, GPT-5.4-mini e outros)
 - 🔑 Chave de API armazenada localmente no navegador (localStorage) ou via arquivo externo opcional `chatgpt.js`
 - 🌐 Interface 100% em português, responsiva
 
