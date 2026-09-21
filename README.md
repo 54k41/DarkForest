@@ -1,50 +1,147 @@
 # DarkForest
 
-DarkForest é um chatbot web em um único arquivo HTML que utiliza a API da OpenAI, com roteamento inteligente de modelos via Jev e RAG vetorial para documentos. Basta abrir o arquivo no navegador e configurar a chave de API — sem instalação e sem etapa de build.
+Chatbot web minimalista, sem build e sem instalação, com roteamento inteligente de modelos via Jev e RAG vetorial para documentos.
+
+Abra o `darkforest.html`, configure sua chave e use.
+
+![DarkForest](assets/screenshot.png)
+
+OpenAI · Jev · RAG · Gemini Embeddings · HTML/CSS/JS
 
 ![HTML5](https://img.shields.io/badge/HTML5-single%20file-orange) ![OpenAI](https://img.shields.io/badge/API-OpenAI-green) ![Google%20Gemini](https://img.shields.io/badge/embeddings-Gemini-blue) ![pt--BR](https://img.shields.io/badge/idioma-pt--BR-blue)
 
-## Funcionalidades
+## Sobre
 
-- Chat em tempo real (streaming) com modelos GPT da OpenAI, com exibição do raciocínio.
-- Dois modos de roteamento de modelos via [Jev](https://vercel.com/ai-gateway) (Vercel AI Gateway), detalhados na seção [Modos Pro e Lite](#modos-pro-e-lite).
-- RAG vetorial: PDFs anexados são divididos em trechos, representados por embeddings do modelo `gemini-embedding-2` (chave do Google Gemini) e armazenados em cache no IndexedDB. A cada pergunta, uma busca por similaridade de cosseno (top-20) seguida de rerank via Jev inclui no prompt apenas os cinco trechos mais relevantes.
-- Auto Eco: mecanismos de proteção antes do envio (detecção de jailbreak e de dados pessoais sensíveis), avaliação da resposta após a geração (qualidade e aderência às fontes recuperadas) e organização automática dos chats.
-- Chaves de API armazenadas exclusivamente no navegador (localStorage) ou importadas de arquivos locais (`.env`).
-- Interface integralmente em português, responsiva, com tema claro e escuro.
+O DarkForest é um chatbot local-first que combina:
+
+- modelos GPT da OpenAI
+- roteamento adaptativo via Jev
+- RAG vetorial para PDFs
+- armazenamento local no navegador
+- interface em português
+
+## Recursos
+
+### Roteamento inteligente
+
+O Jev escolhe o modelo e o esforço de raciocínio conforme a solicitação, dentro do modo selecionado (Pro ou Lite).
+
+### RAG vetorial
+
+PDFs são fragmentados, indexados localmente e recuperados por similaridade semântica — apenas os trechos relevantes entram no prompt.
+
+### Auto Eco
+
+Proteção de entrada, avaliação de saída e organização automática das conversas.
+
+### Local-first
+
+Chaves e dados de uso permanecem no navegador sempre que possível.
+
+## Início rápido
+
+```text
+1. Baixe darkforest.html
+2. Abra no navegador
+3. Informe sua chave OpenAI
+4. Comece a conversar
+```
+
+### RAG
+
+Adicione sua chave Gemini nas configurações.
+
+### Jev
+
+Configure `AI_GATEWAY_API_KEY` no `.env`, publique `api/decide.js` na Vercel e defina a URL do endpoint em `localStorage.jevDecideUrl`.
 
 ## Modos Pro e Lite
 
-O seletor da interface define o par de modelos candidatos. O modelo que responderá cada mensagem — e o esforço de raciocínio aplicado — é definido pelo **Jev**, um modelo de decisão que responde perguntas estruturadas sem gerar texto. Quando o backend do Jev não está configurado, uma heurística local equivalente assume essa função, sem interromper o funcionamento do chat.
+| Modo | Perfil |
+|------|--------|
+| **Pro** | Maior capacidade e raciocínio adaptativo |
+| **Lite** | Menor custo e respostas mais rápidas |
+
+> O Jev escolhe dinamicamente o modelo e o esforço de raciocínio dentro de cada modo.
+
+### Roteamento interno
 
 | Modo | Modelos candidatos | Esforço de raciocínio |
 |------|--------------------|------------------------|
-| **Pro** | `gpt-5.4` ou `gpt-5.4-mini`, escolhidos pelo Jev conforme complexidade, anexos e tipo de pedido | Escolhido pelo Jev (`low`, `medium` ou `high`) para qualquer modelo |
+| **Pro** | `gpt-5.4` ou `gpt-5.4-mini`, escolhidos pelo Jev conforme complexidade, anexos e tipo de pedido | Definido pelo Jev (`low`, `medium` ou `high`) para qualquer modelo |
 | **Lite** | `gpt-5.4-mini` ou `gpt-4.1-mini`, escolhidos pelo Jev; solicitações simples são atendidas pelo `gpt-4.1-mini` | O `gpt-5.4-mini` recebe esforço definido pelo Jev (`low`, `medium` ou `high`), com criação de código fixada em `high`; o `gpt-4.1-mini` responde sem raciocínio |
 
 Regras determinísticas no código complementam a decisão do Jev: no modo **Pro**, anexos, PDFs e solicitações complexas são direcionados ao `gpt-5.4` (via Responses API); no modo **Lite**, a criação de código é direcionada ao `gpt-5.4-mini` com esforço `high`. O modelo e o esforço efetivamente utilizados são exibidos junto a cada resposta.
 
-## Chaves de API
+## RAG
 
-| Chave | Finalidade | Configuração |
-|-------|------------|--------------|
-| OpenAI (`sk-...`) | Conversação | Informar na interface (colagem direta ou importação de arquivo `.env`) ou criar um arquivo `chatgpt.js` junto ao HTML com `const OPENAI_API_KEY = "sk-...";` |
-| Gemini (`AIza...` ou `AQ....`) | Embeddings do RAG (`gemini-embedding-2`) | Informar no campo de chave de embeddings, nas Configurações |
-| NVIDIA (`nvapi-...`) (opcional) | Provedor alternativo de embeddings (`nemotron-3-embed-1b`) | Mesmo campo; o formato da chave determina o provedor |
-| AI Gateway (`AI_GATEWAY_API_KEY`) (opcional) | Roteamento Pro/Lite e rerank do RAG via Jev | Definir em um arquivo `.env` na raiz do projeto; em produção, também é possível configurá-la no painel da Vercel |
+Na ausência de chave de embeddings, o chat opera em modo clássico: o documento é incluído integralmente no prompt, com controle de tamanho.
 
-Na ausência de chave de embeddings, o chat opera em modo clássico: o documento é incluído integralmente no prompt, com controle de tamanho. Com uma chave válida, o modo vetorial é ativado automaticamente.
+Com uma chave válida (Gemini ou NVIDIA), o modo vetorial é ativado automaticamente:
 
-## Como usar
+1. O PDF anexado é dividido em trechos (chunks).
+2. Cada trecho é convertido em embedding — `gemini-embedding-2` (1536 dimensões) ou `nvidia/nemotron-3-embed-1b` (512 dimensões) — com fila com limite de RPM/TPM.
+3. Os embeddings são armazenados em cache no IndexedDB, junto às conversas.
+4. A cada pergunta, a busca por similaridade de cosseno seleciona os 20 trechos mais próximos.
+5. O Jev reordena os candidatos e apenas os 5 trechos que respondem à pergunta entram no prompt.
 
-1. Baixe o arquivo `darkforest.html`.
-2. Abra-o no navegador (Chrome, Edge ou Firefox).
-3. Configure a chave da OpenAI: informe-a na interface (colagem direta ou importação de um arquivo `.env`) ou utilize o arquivo `chatgpt.js`.
-4. (Opcional) Ative o RAG vetorial informando uma chave do Gemini nas Configurações.
-5. (Opcional) Ative o Jev: crie um arquivo `.env` na raiz do projeto com `AI_GATEWAY_API_KEY=...`, publique a função em `api/decide.js` na Vercel e defina a URL do endpoint em `localStorage.jevDecideUrl`.
-6. Envie mensagens, anexe PDFs e alterne entre os modos **Pro** e **Lite**.
+## Auto Eco
 
-O uso das APIs é cobrado pelos respectivos provedores conforme o plano contratado.
+O Auto Eco é a camada de avaliação e proteção do chat, construída sobre o Jev (com fallback em heurísticas locais):
+
+- **Antes do envio**: detecção de tentativas de jailbreak (bloqueia antes de consumir a API, com opção de envio manual) e alerta de dados pessoais sensíveis (CPF, cartão de crédito, senhas).
+- **Depois da resposta**: avaliação de qualidade, recusa indevida, código quebrado e aderência às fontes recuperadas (groundedness).
+- **Organização**: classificação de importância e conclusão de tarefa alimentam o auto-pin e a busca por tags.
+
+## Configuração
+
+### Obrigatório
+
+- **OpenAI** (`sk-...`) — conversação. Informe na interface (colagem direta ou importação de arquivo `.env`) ou crie um arquivo `chatgpt.js` junto ao HTML com `const OPENAI_API_KEY = "sk-...";`.
+
+### Opcional
+
+- **Gemini** (`AIza...` ou `AQ....`) — embeddings do RAG (`gemini-embedding-2`). Informe no campo de chave de embeddings, nas Configurações.
+- **NVIDIA** (`nvapi-...`) — provedor alternativo de embeddings (`nemotron-3-embed-1b`). Mesmo campo; o formato da chave determina o provedor.
+- **Vercel AI Gateway / Jev** — roteamento Pro/Lite e rerank do RAG. Defina `window.JEV_DECIDE_URL` ou `localStorage.jevDecideUrl` apontando para o endpoint `/api/decide`.
+
+## Arquitetura
+
+```text
+Usuário
+   ↓
+DarkForest
+   ↓
+Jev
+   ↓
+Seleção de modelo + esforço
+   ↓
+OpenAI
+   ↓
+Resposta
+```
+
+Com RAG:
+
+```text
+PDF
+ ↓
+Extração
+ ↓
+Chunking
+ ↓
+Embeddings
+ ↓
+IndexedDB
+ ↓
+Busca top-20
+ ↓
+Jev rerank
+ ↓
+Top-5
+ ↓
+Modelo
+```
 
 ## Estrutura do projeto
 
@@ -58,19 +155,20 @@ package.json      # Dependência da função (SDK "ai")
 
 ## Segurança
 
-- As chaves permanecem no navegador: a chave da OpenAI é enviada somente para `api.openai.com`, e a chave de embeddings somente para o provedor correspondente.
-- Os arquivos `.env`, `chatgpt.js`, `chave_api.js` e `*.key` estão listados no `.gitignore` e não devem ser commitados.
-- A chave do AI Gateway (`AI_GATEWAY_API_KEY`) é fornecida por variável de ambiente (arquivo `.env`, lido pela `api/decide.js`) e nunca aparece no HTML.
-- Em hospedagens públicas (por exemplo, GitHub Pages), cada usuário da página deverá fornecer a própria chave.
+- As chaves da OpenAI e dos embeddings são utilizadas apenas pelo navegador, enviadas exclusivamente para os provedores correspondentes.
+- A chave do AI Gateway permanece no ambiente da função da Vercel, nunca no HTML.
+- Arquivos `.env`, `chatgpt.js`, `chave_api.js` e `*.key` são ignorados pelo Git e não devem ser commitados.
+- Em hospedagens públicas (por exemplo, GitHub Pages), cada usuário deve fornecer suas próprias credenciais.
 
-## Tecnologias
+## Stack
 
-- HTML5, CSS3 e JavaScript puro (sem frameworks)
-- [PDF.js](https://mozilla.github.io/pdf.js/) para extração de texto de PDFs
-- [highlight.js](https://highlightjs.org/) para realce de sintaxe em blocos de código
-- OpenAI Responses API (GPT-5.4) e Chat Completions API (demais modelos)
-- Google Gemini Embeddings (`gemini-embedding-2`) para o índice vetorial
-- [Jev](https://vercel.com/ai-gateway) (via Vercel AI Gateway) para decisão e roteamento — opcional
+- HTML5 / CSS3 / JavaScript
+- OpenAI API (Responses API e Chat Completions)
+- Vercel AI Gateway + Jev
+- Gemini Embeddings
+- PDF.js
+- highlight.js
+- IndexedDB
 
 ## Licença
 
