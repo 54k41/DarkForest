@@ -49,8 +49,8 @@ Você tem **duas opções** (escolha uma):
 
 ## 4. Modelos disponíveis
 
-- **GPT-4o** — mais capaz, ideal para análise de documentos
-- **GPT-4o-mini** — mais rápido e econômico, bom para uso diário
+- **GPT-5.4** — modelo frontier, com raciocínio (usado via Responses API)
+- **GPT-5.4 Mini** — mais rápido e econômico, padrão do app
 
 ---
 

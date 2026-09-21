@@ -1,6 +1,6 @@
 # DarkForest
 
-**DarkForest** é um chatbot web em **um único arquivo HTML** que  utiliza a API da OpenAI. Basta abrir o arquivo no navegador, importar sua chave de API e começar a conversar — sem instalação, sem servidor, sem complicação.
+**DarkForest** é um chatbot web em **um único arquivo HTML** que conversa com a API da OpenAI. Basta abrir o arquivo no navegador, colar sua chave de API e começar a conversar — sem instalação, sem servidor, sem build.
 
 ![HTML5](https://img.shields.io/badge/HTML5-single%20file-orange) ![OpenAI](https://img.shields.io/badge/API-OpenAI-green) ![pt--BR](https://img.shields.io/badge/idioma-pt--BR-blue)
 
@@ -8,7 +8,7 @@
 
 - 💬 Chat em tempo real com modelos GPT da OpenAI
 - 📄 Leitura e análise de **PDFs** anexados (via PDF.js)
-- 🤖 Seleção de modelo (GPT-5.4, GPT-5.4-mini e outros)
+- 🤖 Seleção de modelo (GPT-5.4 via Responses API, GPT-5.4 Mini via Chat Completions)
 - 🔑 Chave de API armazenada localmente no navegador (localStorage) ou via arquivo externo opcional `chatgpt.js`
 - 🌐 Interface 100% em português, responsiva
 
@@ -43,6 +43,7 @@ darkforest.html   # Aplicação completa (HTML + CSS + JS)
 
 - HTML5 + CSS3 + JavaScript puro (sem frameworks)
 - [PDF.js](https://mozilla.github.io/pdf.js/) para extração de texto de PDFs
+- [highlight.js](https://highlightjs.org/) para coloração de sintaxe nos blocos de código
 - OpenAI Chat Completions API
 
 ## 📄 Licença
