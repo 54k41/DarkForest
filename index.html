@@ -1169,6 +1169,9 @@
                     <input type="password" id="jevKeyInput" class="search-input" placeholder="Chave do Jev (Vercel vck.… ou TypeSafe AI)" autocomplete="off" onkeydown="if(event.key==='Enter') saveJevKey()">
                     <div id="jevKeyMsg" style="font-size: 0.75rem; color: var(--danger); display: none;"></div>
                     <button class="btn-action-primary" onclick="saveJevKey()">Salvar chave do Jev</button>
+                    <button class="icon-btn danger" id="btnRemoveJev" style="display: none; align-self: flex-start;" onclick="confirmRemoveJevKey(this)" title="Remover chave do Jev" aria-label="Remover chave do Jev">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
                     <span style="font-size: 0.72rem; color: var(--text-muted, #888);">Cada usuário usa a própria chave, direto do navegador para o provedor. Sem chave, o Auto Eco usa heurísticas locais.</span>
                 </div>
             </div>
@@ -1575,7 +1578,7 @@
             if (sessionCheckbox) sessionCheckbox.checked = isSessionOnly;
 
             if (key) {
-                const masked = key.slice(0, 7) + '••••••••' + key.slice(-4);
+                const masked = key.slice(0, 5) + '••••••••••••' + key.slice(-3);
                 if (sidebarDot) {
                     sidebarDot.className = 'status-dot configured';
                     sidebarDot.title = 'Chave Conectada';
@@ -1642,7 +1645,9 @@
         function saveManualApiKey() {
             const input = document.getElementById('manualApiKeyInput');
             const val = (input.value || '').trim();
-            const key = extractApiKeyFromText(val) || (val.startsWith('sk-') ? val : null);
+            // Fallback exige o mesmo formato do extrator: "sk-" + 20+ caracteres
+            // (antes aceitava qualquer coisa com prefixo sk- e falhava só no envio).
+            const key = extractApiKeyFromText(val) || (/^sk-[A-Za-z0-9_\-.]{20,}$/.test(val) ? val : null);
             const sessionOnly = document.getElementById('sessionOnlyKeyCheckbox')?.checked;
             if (key) {
                 if (sessionOnly) {
@@ -1699,11 +1704,11 @@
                 const sessionOnly = document.getElementById('sessionOnlyKeyCheckbox')?.checked;
                 if (key) {
                     if (sessionOnly) {
-                        sessionStorage.setItem('openai_api_key', key);
-                        localStorage.removeItem('openai_api_key');
+                        writeStorageSafe(sessionStorage, 'openai_api_key', key);
+                        removeStorageSafe(localStorage, 'openai_api_key');
                     } else {
-                        localStorage.setItem('openai_api_key', key);
-                        sessionStorage.removeItem('openai_api_key');
+                        writeStorageSafe(localStorage, 'openai_api_key', key);
+                        removeStorageSafe(sessionStorage, 'openai_api_key');
                     }
                     updateApiKeyUI();
                     toggleManualKeyForm(false);
@@ -1819,14 +1824,19 @@
             }
             try { localStorage.setItem('jev_api_key', val); } catch (e) {}
             document.getElementById('jevKeyInput').value = '';
+            updateJevKeyUI();
             if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.style.display = 'block'; msgEl.textContent = 'Chave do Jev salva (' + (jevProviderFor(val) === 'gateway' ? 'Vercel AI Gateway' : 'TypeSafe AI') + ').'; }
             setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; closeSettingsModal(); }, 1200);
         }
+        function updateJevKeyUI() {
+            const btn = document.getElementById('btnRemoveJev');
+            if (btn) btn.style.display = jevApiKey() ? 'inline-flex' : 'none';
+        }
         function confirmRemoveJevKey(btn) {
             try { localStorage.removeItem('jev_api_key'); } catch (e) {}
-            if (btn) btn.style.display = 'none';
+            updateJevKeyUI();
         }
-        function saveEmbKeys() {
+        async function saveEmbKeys() {
             const msgEl = document.getElementById('embKeyMsg');
             if (msgEl) { msgEl.style.display = 'none'; msgEl.style.color = 'var(--danger)'; }
             const rawInput = document.getElementById('embKeyInput').value || '';
@@ -1845,6 +1855,14 @@
                 if (msgEl) { msgEl.textContent = 'Chave muito curta ou inválida — confira se copiou a chave inteira.'; msgEl.style.display = 'block'; }
                 return;
             }
+            // Valida ANTES de persistir: chave recusada pela API não fica ativa
+            // (antes salvava primeiro e todo envio ficava tentando embeddar à toa).
+            if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = `Chave ${prov === 'gemini' ? 'Gemini' : 'NVIDIA'} — testando…`; msgEl.style.display = 'block'; }
+            const ok = await testEmbKey(prov, val);
+            if (!ok) {
+                if (msgEl) { msgEl.textContent = 'A API recusou a chave (confira-a no provedor). Nada foi salvo.'; msgEl.style.display = 'block'; }
+                return;
+            }
             try {
                 // Campo único: uma chave por vez em 'emb_api_key'. Remove os
                 // slots legados para não haver duas fontes competindo.
@@ -1855,27 +1873,24 @@
                 localStorage.removeItem('nvidia_emb_key');
             } catch (e) {}
             document.getElementById('embKeyInput').value = '';
-            if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.textContent = `Chave ${prov === 'gemini' ? 'Gemini' : 'NVIDIA'} salva — testando…`; msgEl.style.display = 'block'; }
+            if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.textContent = `Chave ${prov === 'gemini' ? 'Gemini' : 'NVIDIA'} válida — salva.`; msgEl.style.display = 'block'; }
             updateEmbKeyUI();
-            // Valida de verdade contra a API e mostra o resultado no modal
-            testEmbKey().then(ok => {
-                if (ok) { updateEmbKeyUI(); closeSettingsModal(); }
-                else if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Chave salva, mas a API recusou (verifique a chave no provedor).'; msgEl.style.display = 'block'; }
-            });
+            setTimeout(() => { closeSettingsModal(); }, 900);
         }
         // Teste real da chave (1 embedding de "teste"): confirma que o
         // provedor existe e a chave é válida antes de indexar documentos.
-        async function testEmbKey() {
+        // Com overrides, testa uma candidata ainda NÃO salva no storage.
+        async function testEmbKey(provOverride = null, keyOverride = null) {
             const msgEl = document.getElementById('embKeyMsg');
             try {
-                const m = embMode();
+                const m = provOverride ? { mode: 'embeddings', provider: provOverride } : embMode();
                 if (m.mode !== 'embeddings') {
                     if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Nenhuma chave válida encontrada.'; msgEl.style.display = 'block'; }
                     return false;
                 }
                 const vecs = m.provider === 'gemini'
-                    ? await embedTextsGemini(['teste'], getGeminiEmbKey())
-                    : await embedTextsNvidia(['teste'], getNvidiaEmbKey());
+                    ? await embedTextsGemini(['teste'], keyOverride || getGeminiEmbKey())
+                    : await embedTextsNvidia(['teste'], keyOverride || getNvidiaEmbKey());
                 const dim = Array.isArray(vecs) && vecs[0] ? vecs[0].length : 0;
                 console.log(`[RAG] chave ${m.provider} válida (dim=${dim})`);
                 return dim > 0;
@@ -2219,6 +2234,10 @@
                 clearTimeout(setTheme._transitionTimer);
                 setTheme._transitionTimer = setTimeout(() => document.body.classList.remove('theme-transitioning'), 350);
             }
+            // Mantém <html> e <body> sincronizados: o <head> define o tema no
+            // documentElement (anti-flash) — sem isso ficavam dois valores
+            // divergentes depois da primeira troca de tema.
+            document.documentElement.setAttribute('data-theme', theme);
             document.body.setAttribute('data-theme', theme);
             writeStorageSafe(localStorage, 'chatbox_theme', theme);
             const lightBtn = document.getElementById('themeLightBtn');
@@ -2240,11 +2259,11 @@
                 const chats = await getAllFromDB('chats');
                 if (!includeImages) {
                     // Backup de texto não inclui o store de embeddings: documentos
-                    // anexados no modo indexado (text: '' no histórico) ficariam
-                    // sem conteúdo ao restaurar. Avisa antes de exportar.
+                    // anexados no modo indexado perdem a busca vetorial — o texto
+                    // bruto de fallback continua no histórico, mas o índice não.
                     const temDocsIndexados = chats.some(c => Array.isArray(c.recentHistory) &&
                         c.recentHistory.some(m => Array.isArray(m.docs) && m.docs.some(d => d && d._indexed)));
-                    if (temDocsIndexados && !confirm('Este backup NÃO inclui o índice RAG (embeddings).\n\nDocumentos anexados no modo indexado ficarão SEM CONTEÚDO ao restaurar este backup.\n\nPrefira "Backup Completo" para preservá-los. Exportar mesmo assim?')) {
+                    if (temDocsIndexados && !confirm('Este backup NÃO inclui o índice RAG (embeddings).\n\nDocumentos anexados no modo indexado perdem a busca vetorial ao restaurar (o texto bruto de fallback é preservado, mas sem índice).\n\nPrefira "Backup Completo" para preservar o índice. Exportar mesmo assim?')) {
                         return;
                     }
                 }
@@ -2282,10 +2301,15 @@
         function sanitizeImportedChat(c, existingIds, importedCount) {
             if (!c || typeof c !== 'object') return null;
             let chatId = Number(c.id);
-            if (isNaN(chatId) || typeof c.id !== 'number' || existingIds.has(c.id)) {
+            // Colisão comparada nas duas formas: imports antigos podem trazer ids
+            // string e o banco ids numéricos — comparar só um lado falha.
+            const idInUse = existingIds.has(c.id)
+                || (typeof c.id === 'string' && !isNaN(chatId) && existingIds.has(chatId))
+                || (typeof c.id === 'number' && existingIds.has(String(c.id)));
+            if (isNaN(chatId) || typeof c.id !== 'number' || idInUse) {
                 do {
                     chatId = Date.now() + Math.floor(Math.random() * 1000000) + importedCount;
-                } while (existingIds.has(chatId));
+                } while (existingIds.has(chatId) || existingIds.has(String(chatId)));
             }
             const cleanTitle = typeof c.title === 'string' ? c.title.trim().slice(0, 200) : "Chat Importado";
             const isArchived = Boolean(c.isArchived);
@@ -2485,7 +2509,9 @@
             }
         }
 
-        window.onload = async () => {
+        // Boot em DOMContentLoaded (não window.onload): uma CDN lenta (PDF.js,
+        // marked…) não pode atrasar a inicialização do chat.
+        const bootApp = async () => {
             // Sem preferência salva, herda o tema já detectado no <head>
             // (prefers-color-scheme) — a detecção não é gravada no storage.
             const savedTheme = readStorageSafe(localStorage, 'chatbox_theme')
@@ -2493,6 +2519,7 @@
                 || 'light';
             setTheme(savedTheme);
             updateApiKeyUI();
+            updateJevKeyUI();
             
             document.addEventListener('click', () => { 
                 document.querySelectorAll('.chat-options-menu').forEach(m => m.classList.remove('show')); 
@@ -2533,6 +2560,11 @@
                 alert("Erro ao carregar as conversas: " + (err && err.message ? err.message : err));
             }
         };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootApp);
+        } else {
+            bootApp();
+        }
 
         function recalculateHistoryCharCount() {
             const chat = getActiveChat();
@@ -2545,7 +2577,11 @@
                     
                     if (Array.isArray(m.docs)) {
                         for (let d of m.docs) {
-                            if (d && typeof d.text === 'string') count += d.text.length;
+                            if (!d) continue;
+                            // Doc indexado (RAG) não entra inteiro no prompt: só os
+                            // ~top-5 trechos recuperados — estima em vez de contar o texto.
+                            if (d._indexed) count += 5 * 1600;
+                            else if (typeof d.text === 'string') count += d.text.length;
                         }
                     }
                     if (Array.isArray(m.imageRefs)) {
@@ -2562,8 +2598,13 @@
                 const inputField = document.getElementById('messageInput');
                 let textLen = (inputField ? (inputField.value || '').length : 0) + cachedHistoryCharCount;
                 for (let a of pendingAttachments) {
-                    if (a.type === 'document' && a.data) textLen += a.data.length;
-                    if (a.type === 'image') textLen += 500; 
+                    if (a.type === 'document') {
+                        // Anexo indexado (RAG) não vai inteiro no prompt: estima
+                        // os trechos recuperados em vez de contar o texto bruto.
+                        if (a._indexed) textLen += 5 * 1600;
+                        else if (a.data) textLen += a.data.length;
+                    }
+                    if (a.type === 'image') textLen += 500;
                 }
                 const tokens = Math.ceil(textLen / 4);
                 const tokenEl = document.getElementById('tokenCounter');
@@ -2658,7 +2699,16 @@
                 } else {
                     const reader = new FileReader();
                     reader.onload = async (e) => {
-                        const finalText = await finalizeDocumentAttachment(uniqueId, file.name, e.target.result);
+                        // Só o PDF é capado por páginas — um .txt de 20 MB viraria
+                        // milhares de chamadas de embedding (trava UI, queima cota)
+                        // ou um prompt gigante no modo clássico.
+                        let rawText = String(e.target.result || '');
+                        const MAX_TEXT_DOC_CHARS = 300000;
+                        if (rawText.length > MAX_TEXT_DOC_CHARS) {
+                            rawText = rawText.slice(0, MAX_TEXT_DOC_CHARS)
+                                + `\n\n[Nota: "${file.name}" possui ${rawText.length} caracteres. Limitado aos primeiros ${MAX_TEXT_DOC_CHARS} para preservar desempenho e cota.]`;
+                        }
+                        const finalText = await finalizeDocumentAttachment(uniqueId, file.name, rawText);
                         // finalizeDocumentAttachment pode retornar null se o doc
                         // já entrou no modo indexado (progresso na própria bolha)
                         if (finalText !== null) {
@@ -2694,9 +2744,15 @@
                     try {
                         // Atualiza o badge a cada ~10%: renderAttachments() reconstrói
                         // o preview inteiro — por chunk, um PDF de 200 chunks
-                        // re-renderizaria 200 vezes.
+                        // re-renderizaria 200 vezes. Se o anexo for removido no meio,
+                        // o job é cancelado (não embute trechos para um ref órfão).
                         let lastPct = 0;
                         const items = await indexDocument(fileName, rawText, (done, total) => {
+                            if (!pendingAttachments.some(a => a.id === uniqueId)) {
+                                const cancelErr = new Error('anexo removido durante a indexação');
+                                cancelErr.cancelled = true;
+                                throw cancelErr;
+                            }
                             const pct = Math.round(done / total * 100);
                             if (pct - lastPct >= 10 || done === total) {
                                 lastPct = pct;
@@ -2705,9 +2761,14 @@
                         }, scopeChatId);
                         ref._hashes = (items || []).map(o => o && o.hash).filter(Boolean);
                         ref._indexing = false;
+                        // Fallback: guarda o texto bruto (já limitado no anexo) no
+                        // anexo/mensagem. Se o modo embeddings morrer depois (chave
+                        // removida/expirada), o doc não vira referência vazia permanente.
+                        ref.data = rawText;
                         updateIndexBadge(uniqueId, `RAG ✓ (${ref._hashes.length} trechos)`);
                         renderAttachments();
                     } catch (err) {
+                        if (err && err.cancelled) return null; // job cancelado: anexo já saiu da fila
                         // Falha na indexação (cota, rede): cai para o clássico
                         console.warn('[RAG] indexação falhou, usando texto completo:', err);
                         ref.data = await triageDocument(fileName, rawText);
@@ -3173,7 +3234,10 @@
                         renderChatList();
                     };
                     input.onblur = saveRename;
-                    input.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); saveRename(); } };
+                    input.onkeydown = (ev) => {
+                        if (ev.key === 'Enter') { ev.preventDefault(); saveRename(); }
+                        if (ev.key === 'Escape') { ev.preventDefault(); input.onblur = null; renderChatList(); }
+                    };
                 });
                 
                 const archiveOpt = createMenuItem(chat.isArchived ? 'Desarquivar' : 'Arquivar', svgArchive, async () => {
@@ -3461,13 +3525,13 @@
             const words = String(userText || '').trim().split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
             const fallback = words ? (words.length > 32 ? words.slice(0, 32).trim() : words) : 'Nova conversa';
             console.warn(`[Título] fallback local (${reason}): "${fallback}"`);
+            const memoryChat = allChats.find(c => String(c.id) === String(chatId));
+            if (memoryChat && memoryChat.title === 'Novo Chat') memoryChat.title = fallback;
             try {
                 await updateChatInDB(chatId, c => {
                     if (c.title === 'Novo Chat') c.title = fallback;
                 });
             } catch (e) { console.warn('[Título] falha ao gravar fallback:', e); }
-            const memoryChat = allChats.find(c => c.id === chatId);
-            if (memoryChat && memoryChat.title === 'Novo Chat') memoryChat.title = fallback;
             renderChatList();
         }
 
@@ -3478,13 +3542,16 @@
                 // ou a confiança da categoria for < 0.7.
                 const jevTitle = await jevTitleFromCategory(userText);
                 if (jevTitle) {
-                    await updateChatInDB(chatId, c => {
-                        if (c.title === 'Novo Chat') c.title = jevTitle;
-                    });
-                    const memoryChat = allChats.find(c => c.id === chatId);
+                    // Memória PRIMEIRO: qualquer saveToDB full-overwrite que corra
+                    // durante o stream carrega o título novo em vez de gravar
+                    // "Novo Chat" por cima do que acabou de ser escrito no banco.
+                    const memoryChat = allChats.find(c => String(c.id) === String(chatId));
                     if (memoryChat && memoryChat.title === 'Novo Chat') {
                         memoryChat.title = jevTitle;
                     }
+                    await updateChatInDB(chatId, c => {
+                        if (c.title === 'Novo Chat') c.title = jevTitle;
+                    });
                     renderChatList();
                     return;
                 }
@@ -3512,15 +3579,15 @@
                 try { data = await resp.json(); } catch (e) { console.error('[Título] resposta JSON inválida:', e); }
                 if (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
                     let title = data.choices[0].message.content.trim().replace(/^["']|["']$/g, '');
-                    if (title) { 
-                        await updateChatInDB(chatId, c => {
-                            if (c.title === 'Novo Chat') c.title = title;
-                        });
-                        const memoryChat = allChats.find(c => c.id === chatId);
+                    if (title) {
+                        const memoryChat = allChats.find(c => String(c.id) === String(chatId));
                         if (memoryChat && memoryChat.title === 'Novo Chat') {
                             memoryChat.title = title;
                         }
-                        renderChatList(); 
+                        await updateChatInDB(chatId, c => {
+                            if (c.title === 'Novo Chat') c.title = title;
+                        });
+                        renderChatList();
                         return;
                     }
                 }
@@ -3576,6 +3643,7 @@
         async function buildAPIPayload(history, chatId) {
             const payload = [];
             let ragTrechos = null;
+            const emb = embMode();
             if (!Array.isArray(history)) return { payload, ragTrechos };
 
             // Ignorar mensagens marcadas com erro
@@ -3611,13 +3679,24 @@
                         // MODO A (embeddings): documentos indexados entram APENAS
                         // como referência — os trechos relevantes já foram injetados
                         // via retrieveChunks; os não-indexados caem no clássico.
-                        (msg.docs || []).forEach(doc => {
-                            if (doc._indexed && !doc.data) {
+                        for (const doc of (msg.docs || [])) {
+                            // MODO A: doc indexado vai só como referência — os trechos
+                            // relevantes já foram injetados via retrieveChunks.
+                            // Com o texto bruto guardado como fallback no anexo, um doc
+                            // indexado cujo modo embeddings caiu (chave removida/expirada)
+                            // injeta o texto completo em vez de virar referência vazia.
+                            if (doc._indexed && emb.mode === 'embeddings') {
                                 contentPayload.push({ type: 'text', text: `\n[Documento anexado: "${doc.name}" (indexado no RAG — trechos relevantes incluídos abaixo)]\n` });
-                            } else {
-                                contentPayload.push({ type: 'text', text: `\n\n--- ARQUIVO: ${doc.name} ---\n${doc.text}\n` });
+                                continue;
                             }
-                        });
+                            let docText = doc.text || '';
+                            // Fallback RAG sem embeddings: o texto bruto nunca passou
+                            // pela triagem — aplica agora se for grande.
+                            if (doc._indexed && docText.length > DOC_TRIAGE_MAX_CHARS) {
+                                docText = await triageDocument(doc.name, docText);
+                            }
+                            contentPayload.push({ type: 'text', text: `\n\n--- ARQUIVO: ${doc.name} ---\n${docText}\n` });
+                        }
                     } else {
                         msg.docs.forEach(doc => contentPayload.push({ type: 'text', text: `\n[Arquivo "${doc.name}" omitido do histórico para poupar tokens]\n` }));
                     }
@@ -3658,7 +3737,7 @@
             // e repetia a mesma recuperação/injeção para cada mensagem do
             // histórico (custo + contexto duplicados).
             try {
-                const { mode } = embMode();
+                const mode = emb.mode;
                 let perguntaAtual = "";
                 for (let k = slicedHistory.length - 1; k >= 0; k--) {
                     if (slicedHistory[k] && slicedHistory[k].role === 'user') {
@@ -4207,7 +4286,14 @@
             const timer = setTimeout(() => controller.abort(), JEV_TIMEOUT_MS);
             try {
                 const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
-                if (!resp.ok) return null;
+                if (!resp.ok) {
+                    // Não engolir o erro: 401/403 = chave Jev inválida — sem isso
+                    // o usuário nunca descobre por que o Auto Eco não roda.
+                    let detail = '';
+                    try { detail = (await resp.text()).slice(0, 160); } catch (e) {}
+                    console.warn(`[Jev] HTTP ${resp.status} do provedor${detail ? ': ' + detail : ''}${resp.status === 401 || resp.status === 403 ? ' — chave do Jev inválida ou sem permissão' : ''}`);
+                    return null;
+                }
                 const data = await resp.json();
                 const answers = (data && (data.answers || data.questions)) || {};
                 const out = {};
@@ -4228,11 +4314,54 @@
             return jevCallOne(state, questions);
         }
 
-        // Decisões paralelas em lote (padrão "6 estados · N perguntas · 1 forward pass").
-        // All-or-nothing, como o bridge antigo: qualquer item falho = sem lote.
+        // Decisões em lote com POUCAS chamadas: o Jev aceita várias perguntas por
+        // chamada, então os itens são concatenados no state (com separadores) e
+        // as perguntas ganham ids prefixados por item. Grupos respeitam o teto de
+        // state de 32k — um rerank de 20 trechos vira 1-3 chamadas em vez de ~20
+        // paralelas. Se a chamada combinada de um grupo falhar, o grupo cai para
+        // as chamadas individuais; qualquer item falho = null (all-or-nothing,
+        // como antes — os chamadores já tratam null com fallback seguro).
+        const JEV_BATCH_STATE_LIMIT = 24000;
         async function jevEvaluateBatch(items) {
             if (!jevReady() || !Array.isArray(items) || items.length === 0) return null;
-            const results = await Promise.all(items.map(it => jevCallOne(it.state, it.questions)));
+            const groups = [];
+            let cur = [], curLen = 0;
+            for (const it of items) {
+                const len = String((it && it.state) || '').length;
+                if (cur.length > 0 && curLen + len > JEV_BATCH_STATE_LIMIT) {
+                    groups.push({ start: items.indexOf(cur[0]), items: cur });
+                    cur = []; curLen = 0;
+                }
+                cur.push(it); curLen += len;
+            }
+            if (cur.length > 0) groups.push({ start: items.indexOf(cur[0]), items: cur });
+
+            const results = new Array(items.length).fill(null);
+            for (const g of groups) {
+                const state = g.items.map((it, i) => `--- item ${i + 1} ---\n${it.state}`).join('\n');
+                const questions = {};
+                g.items.forEach((it, i) => {
+                    for (const [id, q] of Object.entries(it.questions || {})) {
+                        questions[`i${i}_${id}`] = { ...q, instructions: `(referente ao item ${i + 1}) ${q.instructions || ''}` };
+                    }
+                });
+                let answers = await jevCallOne(state, questions);
+                if (!answers) {
+                    const perItem = await Promise.all(g.items.map(it => jevCallOne(it.state, it.questions)));
+                    if (perItem.some(r => !r)) return null;
+                    answers = {};
+                    g.items.forEach((it, i) => {
+                        for (const [id, v] of Object.entries(perItem[i] || {})) answers[`i${i}_${id}`] = v;
+                    });
+                }
+                g.items.forEach((it, i) => {
+                    const out = {};
+                    for (const id of Object.keys(it.questions || {})) {
+                        if (answers[`i${i}_${id}`] !== undefined) out[id] = answers[`i${i}_${id}`];
+                    }
+                    if (Object.keys(out).length > 0) results[g.start + i] = out;
+                });
+            }
             if (results.some(r => !r)) return null;
             return results;
         }
@@ -4866,16 +4995,23 @@
                         try {
                             lockUI(true);
                             const retryChat = allChats.find(c => c.id === targetChatId) || chat;
-                            if (retryChat.recentHistory && retryChat.recentHistory.length > 0) {
-                                const last = retryChat.recentHistory[retryChat.recentHistory.length - 1];
-                                if (last) delete last.status;
-                            }
-                            await updateChatInDB(targetChatId, c => {
-                                if (c.recentHistory && c.recentHistory.length > 0) {
-                                    const last = c.recentHistory[c.recentHistory.length - 1];
-                                    if (last) delete last.status;
+                            // O status='error' fica na última USER — um stream que caiu
+                            // no meio empurra um assistant parcial DEPOIS dela, então
+                            // limpar "o último elemento" pegava o assistant (que não tem
+                            // status) e a pergunta seguia com status='error', sendo
+                            // excluída do payload no retry.
+                            const clearUserErrorStatus = (h) => {
+                                if (!Array.isArray(h)) return;
+                                for (let i = h.length - 1; i >= 0; i--) {
+                                    const m = h[i];
+                                    if (m && m.role === 'user') {
+                                        if (m.status === 'error') delete m.status;
+                                        break;
+                                    }
                                 }
-                            });
+                            };
+                            clearUserErrorStatus(retryChat.recentHistory);
+                            await updateChatInDB(targetChatId, c => clearUserErrorStatus(c.recentHistory));
                             await loadChat(targetChatId);
                             await callAPIAndSave(retryChat, null);
                         } finally {
