@@ -42,15 +42,17 @@ Você tem **duas opções** (escolha uma):
 |------|------------|
 | Conversar | Digite na caixa de mensagem e pressione Enter ou clique em enviar |
 | Anexar PDF | Use o botão de anexar; o texto do PDF é extraído e enviado ao modelo |
-| Trocar de modelo | Selecione o modelo no seletor (ex.: GPT-4o, GPT-4o-mini) |
+| Trocar de modo | Selecione **Pro** ou **Lite** no seletor — o Jev escolhe o modelo exato e o effort de raciocínio |
 | Limpar conversa | Use o botão de nova conversa, se disponível |
 
 ---
 
-## 4. Modelos disponíveis
+## 4. Modos e modelos
 
-- **GPT-5.4** — modelo frontier, com raciocínio (usado via Responses API)
-- **GPT-5.4 Mini** — mais rápido e econômico, padrão do app
+O seletor escolhe o par de modelos; o **Jev** (ou, sem backend, a heurística local) decide qual modelo responde e o **effort** de raciocínio (`low`, `medium` ou `high`).
+
+- **Pro** — `gpt-5.4` ou `gpt-5.4-mini`, escolhidos via Jev; effort escolhido via Jev
+- **Lite** — `gpt-5.4-mini` ou `gpt-4.1-mini`, escolhidos via Jev; no `gpt-5.4-mini` o effort também é escolhido via Jev (criar código força `high`); o `gpt-4.1-mini` responde sem raciocínio ("eco")
 
 ---
 
