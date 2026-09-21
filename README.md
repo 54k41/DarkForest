@@ -53,7 +53,7 @@ Adicione sua chave Gemini nas configurações.
 
 ### Jev
 
-Configure `AI_GATEWAY_API_KEY` no `.env`, publique `api/decide.js` na Vercel e defina a URL do endpoint em `localStorage.jevDecideUrl`.
+Configure `JEV_API_KEY` no `.env` — aceita a key do Vercel AI Gateway (`vck_...`/`vck-...`) ou a key da API da TypeSafe AI; o provedor é detectado automaticamente pelo prefixo. Publique `api/decide.js` na Vercel e defina a URL do endpoint em `localStorage.jevDecideUrl`.
 
 ## Modos Pro e Lite
 
@@ -103,7 +103,7 @@ O Auto Eco é a camada de avaliação e proteção do chat, construída sobre o 
 
 - **Gemini** (`AIza...` ou `AQ....`) — embeddings do RAG (`gemini-embedding-2`). Informe no campo de chave de embeddings, nas Configurações.
 - **NVIDIA** (`nvapi-...`) — provedor alternativo de embeddings (`nemotron-3-embed-1b`). Mesmo campo; o formato da chave determina o provedor.
-- **Vercel AI Gateway / Jev** — roteamento Pro/Lite e rerank do RAG. Defina `window.JEV_DECIDE_URL` ou `localStorage.jevDecideUrl` apontando para o endpoint `/api/decide`.
+- **Jev** (`window.JEV_DECIDE_URL` ou `localStorage.jevDecideUrl`) — roteamento Pro/Lite e rerank do RAG. Defina a variável apontando para o endpoint `/api/decide`, que aceita chave do Vercel AI Gateway ou da TypeSafe AI no `.env`.
 
 ## Arquitetura
 
@@ -156,7 +156,7 @@ package.json      # Dependência da função (SDK "ai")
 ## Segurança
 
 - As chaves da OpenAI e dos embeddings são utilizadas apenas pelo navegador, enviadas exclusivamente para os provedores correspondentes.
-- A chave do AI Gateway permanece no ambiente da função da Vercel, nunca no HTML.
+- A chave do Jev (`JEV_API_KEY`) permanece no ambiente da função da Vercel, nunca no HTML.
 - Arquivos `.env`, `chatgpt.js`, `chave_api.js` e `*.key` são ignorados pelo Git e não devem ser commitados.
 - Em hospedagens públicas (por exemplo, GitHub Pages), cada usuário deve fornecer suas próprias credenciais.
 
@@ -164,7 +164,7 @@ package.json      # Dependência da função (SDK "ai")
 
 - HTML5 / CSS3 / JavaScript
 - OpenAI API (Responses API e Chat Completions)
-- Vercel AI Gateway + Jev
+- Jev (Vercel AI Gateway ou API TypeSafe AI)
 - Gemini Embeddings
 - PDF.js
 - highlight.js

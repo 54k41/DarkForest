@@ -3840,12 +3840,13 @@
         }
 
         // ============ AUTO ECO: camada Jev (System One) ============
-        // O Jev (typesafe-ai/jev, via Vercel AI Gateway) é um modelo de decisão que
-        // responde perguntas tipadas SEM gerar texto. Ele roda server-side em
-        // /api/decide (ver api/decide.js) porque a chave do Gateway não pode ficar
-        // no cliente. Sem backend configurado, cada ponto de uso cai na heurística
-        // local com a MESMA interface: basta definir window.JEV_DECIDE_URL (ou
-        // localStorage.jevDecideUrl) que o Jev assume, sem mudar mais nada.
+        // O Jev é um modelo de decisão que responde perguntas tipadas SEM gerar
+        // texto. Ele roda server-side em /api/decide (ver api/decide.js) porque a
+        // chave (Vercel AI Gateway ou API da TypeSafe AI — o bridge detecta pelo
+        // prefixo) não pode ficar no cliente. Sem backend configurado, cada ponto
+        // de uso cai na heurística local com a MESMA interface: basta definir
+        // window.JEV_DECIDE_URL (ou localStorage.jevDecideUrl) que o Jev assume,
+        // sem mudar mais nada.
         // O Jev NÃO é usado para: gerar resposta, gerar título criativo (só
         // classificar categoria), renderizar markdown ou contar tokens — aí é GPT.
         const SYSTEM_PROMPT_THINK = "Você é um assistente avançado. REGRA ABSOLUTA: Antes de responder, raciocine passo a passo. Se a API suportar envio nativo de raciocínio, utilize-o. Caso contrário, inicie sua resposta com as tags <think> e </think>.";
