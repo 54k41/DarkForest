@@ -1,4 +1,4 @@
-# Guia de Uso — ChatBox AI
+# Guia de Uso — DarkForest
 
 Este guia explica em detalhe como configurar, usar e solucionar problemas do chatbot.
 
@@ -19,7 +19,7 @@ Você tem **duas opções** (escolha uma):
 
 ### Opção A — Pela interface (mais simples)
 
-1. Abra o `chatbot_gpt.html` no navegador
+1. Abra o `darkforest.html` no navegador
 2. Cole a chave no campo de configuração do chat
 3. A chave fica salva no `localStorage` do navegador
 
@@ -68,7 +68,7 @@ Você tem **duas opções** (escolha uma):
 ```bash
 # Python
 python -m http.server 8000
-# depois acesse http://localhost:8000/chatbot_gpt.html
+# depois acesse http://localhost:8000/darkforest.html
 ```
 
 ---

@@ -1,6 +1,6 @@
-# ChatBox AI - OpenAI
+# DarkForest
 
-Chatbot web em **um único arquivo HTML** que  utiliza a API da OpenAI. Basta abrir o arquivo no navegador, importar sua chave de API e começar a conversar — sem instalação, sem servidor, sem complicação.
+**DarkForest** é um chatbot web em **um único arquivo HTML** que  utiliza a API da OpenAI. Basta abrir o arquivo no navegador, importar sua chave de API e começar a conversar — sem instalação, sem servidor, sem complicação.
 
 ![HTML5](https://img.shields.io/badge/HTML5-single%20file-orange) ![OpenAI](https://img.shields.io/badge/API-OpenAI-green) ![pt--BR](https://img.shields.io/badge/idioma-pt--BR-blue)
 
@@ -14,7 +14,7 @@ Chatbot web em **um único arquivo HTML** que  utiliza a API da OpenAI. Basta ab
 
 ## 🚀 Como usar
 
-1. **Baixe o arquivo** `chatbot_gpt.html`
+1. **Baixe o arquivo** `darkforest.html`
 2. **Abra no navegador** (duplo clique — funciona no Chrome, Edge, Firefox)
 3. **Configure a chave da API** de uma das formas:
    - Cole a chave diretamente na interface do chat, **ou**
@@ -29,7 +29,7 @@ Chatbot web em **um único arquivo HTML** que  utiliza a API da OpenAI. Basta ab
 ## 📁 Estrutura
 
 ```
-chatbot_gpt.html   # Aplicação completa (HTML + CSS + JS)
+darkforest.html   # Aplicação completa (HTML + CSS + JS)
 .gitignore         # Ignora segredos (.env, chaves, chatgpt.js)
 ```
 
