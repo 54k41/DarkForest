@@ -31,7 +31,7 @@ Regras determinísticas no código complementam a decisão do Jev: no modo **Pro
 | OpenAI (`sk-...`) | Conversação | Informar na interface (colagem direta ou importação de arquivo `.env`) ou criar um arquivo `chatgpt.js` junto ao HTML com `const OPENAI_API_KEY = "sk-...";` |
 | Gemini (`AIza...` ou `AQ....`) | Embeddings do RAG (`gemini-embedding-2`) | Informar no campo de chave de embeddings, nas Configurações |
 | NVIDIA (`nvapi-...`) (opcional) | Provedor alternativo de embeddings (`nemotron-3-embed-1b`) | Mesmo campo; o formato da chave determina o provedor |
-| Jev (opcional) | Roteamento Pro/Lite e rerank do RAG | Definir `window.JEV_DECIDE_URL` ou `localStorage.jevDecideUrl` apontando para o endpoint `/api/decide` (deploy na Vercel) |
+| AI Gateway (`AI_GATEWAY_API_KEY`) (opcional) | Roteamento Pro/Lite e rerank do RAG via Jev | Definir em um arquivo `.env` na raiz do projeto; em produção, também é possível configurá-la no painel da Vercel |
 
 Na ausência de chave de embeddings, o chat opera em modo clássico: o documento é incluído integralmente no prompt, com controle de tamanho. Com uma chave válida, o modo vetorial é ativado automaticamente.
 
@@ -41,7 +41,7 @@ Na ausência de chave de embeddings, o chat opera em modo clássico: o documento
 2. Abra-o no navegador (Chrome, Edge ou Firefox).
 3. Configure a chave da OpenAI: informe-a na interface (colagem direta ou importação de um arquivo `.env`) ou utilize o arquivo `chatgpt.js`.
 4. (Opcional) Ative o RAG vetorial informando uma chave do Gemini nas Configurações.
-5. (Opcional) Ative o Jev: publique a `api/decide.js` na Vercel (com `AI_GATEWAY_API_KEY` configurada no painel) e defina a URL do endpoint em `localStorage.jevDecideUrl`.
+5. (Opcional) Ative o Jev: crie um arquivo `.env` na raiz do projeto com `AI_GATEWAY_API_KEY=...`, publique a função em `api/decide.js` na Vercel e defina a URL do endpoint em `localStorage.jevDecideUrl`.
 6. Envie mensagens, anexe PDFs e alterne entre os modos **Pro** e **Lite**.
 
 O uso das APIs é cobrado pelos respectivos provedores conforme o plano contratado.
@@ -52,6 +52,7 @@ O uso das APIs é cobrado pelos respectivos provedores conforme o plano contrata
 darkforest.html   # Aplicação completa (HTML + CSS + JS)
 api/decide.js     # Vercel Function (Node 22) — decisões via Jev (opcional)
 package.json      # Dependência da função (SDK "ai")
+.env              # Chaves de API (local, não versionado)
 .gitignore        # Ignora segredos (.env, chaves, chatgpt.js)
 ```
 
@@ -59,7 +60,7 @@ package.json      # Dependência da função (SDK "ai")
 
 - As chaves permanecem no navegador: a chave da OpenAI é enviada somente para `api.openai.com`, e a chave de embeddings somente para o provedor correspondente.
 - Os arquivos `.env`, `chatgpt.js`, `chave_api.js` e `*.key` estão listados no `.gitignore` e não devem ser commitados.
-- A chave do AI Gateway (`AI_GATEWAY_API_KEY`) reside exclusivamente no servidor da `api/decide.js`, nunca no HTML.
+- A chave do AI Gateway (`AI_GATEWAY_API_KEY`) é fornecida por variável de ambiente (arquivo `.env`, lido pela `api/decide.js`) e nunca aparece no HTML.
 - Em hospedagens públicas (por exemplo, GitHub Pages), cada usuário da página deverá fornecer a própria chave.
 
 ## Tecnologias

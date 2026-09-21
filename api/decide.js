@@ -7,8 +7,9 @@
 //   Em caso de erro: status >= 400 com { error }. O front trata qualquer falha
 //   como "sem Jev" e cai na heurística local (zero breaking change).
 //
-// Deploy: `vercel` na raiz do projeto + variável de ambiente AI_GATEWAY_API_KEY
-// no dashboard da Vercel (o .env local só serve para testes locais com `vercel dev`).
+// Deploy: defina AI_GATEWAY_API_KEY no arquivo .env da raiz do projeto (usado
+// pelo `vercel dev` e pela publish da Vercel); em produção, a variável também
+// pode ser configurada no dashboard da Vercel.
 
 import { experimental_evaluate as evaluate } from 'ai';
 
