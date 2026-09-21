@@ -10,7 +10,7 @@ DarkForest é um chatbot web em um único arquivo HTML que utiliza a API da Open
 - Dois modos de roteamento de modelos via [Jev](https://vercel.com/ai-gateway) (Vercel AI Gateway), detalhados na seção [Modos Pro e Lite](#modos-pro-e-lite).
 - RAG vetorial: PDFs anexados são divididos em trechos, representados por embeddings do modelo `gemini-embedding-2` (chave do Google Gemini) e armazenados em cache no IndexedDB. A cada pergunta, uma busca por similaridade de cosseno (top-20) seguida de rerank via Jev inclui no prompt apenas os cinco trechos mais relevantes.
 - Auto Eco: mecanismos de proteção antes do envio (detecção de jailbreak e de dados pessoais sensíveis), avaliação da resposta após a geração (qualidade e aderência às fontes recuperadas) e organização automática dos chats.
-- Chaves de API armazenadas exclusivamente no navegador (localStorage) ou em arquivos locais opcionais (`chatgpt.js`).
+- Chaves de API armazenadas exclusivamente no navegador (localStorage) ou importadas de arquivos locais (`.env`).
 - Interface integralmente em português, responsiva, com tema claro e escuro.
 
 ## Modos Pro e Lite
@@ -28,7 +28,7 @@ Regras determinísticas no código complementam a decisão do Jev: no modo **Pro
 
 | Chave | Finalidade | Configuração |
 |-------|------------|--------------|
-| OpenAI (`sk-...`) | Conversação | Informar na interface ou criar um arquivo `chatgpt.js` junto ao HTML com `const OPENAI_API_KEY = "sk-...";` |
+| OpenAI (`sk-...`) | Conversação | Informar na interface (colagem direta ou importação de arquivo `.env`) ou criar um arquivo `chatgpt.js` junto ao HTML com `const OPENAI_API_KEY = "sk-...";` |
 | Gemini (`AIza...` ou `AQ....`) | Embeddings do RAG (`gemini-embedding-2`) | Informar no campo de chave de embeddings, nas Configurações |
 | NVIDIA (`nvapi-...`) (opcional) | Provedor alternativo de embeddings (`nemotron-3-embed-1b`) | Mesmo campo; o formato da chave determina o provedor |
 | Jev (opcional) | Roteamento Pro/Lite e rerank do RAG | Definir `window.JEV_DECIDE_URL` ou `localStorage.jevDecideUrl` apontando para o endpoint `/api/decide` (deploy na Vercel) |
@@ -39,7 +39,7 @@ Na ausência de chave de embeddings, o chat opera em modo clássico: o documento
 
 1. Baixe o arquivo `darkforest.html`.
 2. Abra-o no navegador (Chrome, Edge ou Firefox).
-3. Configure a chave da OpenAI: informe-a na interface ou utilize o arquivo `chatgpt.js`.
+3. Configure a chave da OpenAI: informe-a na interface (colagem direta ou importação de um arquivo `.env`) ou utilize o arquivo `chatgpt.js`.
 4. (Opcional) Ative o RAG vetorial informando uma chave do Gemini nas Configurações.
 5. (Opcional) Ative o Jev: publique a `api/decide.js` na Vercel (com `AI_GATEWAY_API_KEY` configurada no painel) e defina a URL do endpoint em `localStorage.jevDecideUrl`.
 6. Envie mensagens, anexe PDFs e alterne entre os modos **Pro** e **Lite**.
