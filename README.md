@@ -51,9 +51,14 @@ Chaves e dados de uso permanecem no navegador sempre que possível.
 
 Adicione sua chave Gemini nas configurações.
 
-### Jev
+### Jev (BYOK — opcional)
 
-Configure `JEV_API_KEY` no `.env` — aceita a key do Vercel AI Gateway (`vck_...`/`vck-...`) ou a key da API da TypeSafe AI; o provedor é detectado automaticamente pelo prefixo. Publique `api/decide.js` na Vercel e defina a URL do endpoint em `localStorage.jevDecideUrl`.
+Cada usuário usa a **própria chave**, informada nas Configurações (ou `window.JEV_API_KEY` / `localStorage.jev_api_key`). O navegador fala direto com o provedor — sem backend:
+
+- **Vercel AI Gateway** (`vck_...`/`vck-...`) — chama `/v4/ai/evaluation-model` com o modelo `typesafe-ai/jev` (CORS aberto, funciona de qualquer página).
+- **TypeSafe AI** (API original) — chama `https://api.typesafe.ai/v1/systemone` com o modelo `jev-latest`. Atenção: a API da TypeSafe mantém uma allowlist de origens (CORS) e hoje bloqueia chamadas vindas do navegador de terceiros — se a chamada falhar, o app cai automaticamente na heurística local.
+
+O provedor é detectado automaticamente pelo prefixo da chave. Sem chave, o Auto Eco funciona só com heurísticas locais.
 
 ## Modos Pro e Lite
 
@@ -103,7 +108,7 @@ O Auto Eco é a camada de avaliação e proteção do chat, construída sobre o 
 
 - **Gemini** (`AIza...` ou `AQ....`) — embeddings do RAG (`gemini-embedding-2`). Informe no campo de chave de embeddings, nas Configurações.
 - **NVIDIA** (`nvapi-...`) — provedor alternativo de embeddings (`nemotron-3-embed-1b`). Mesmo campo; o formato da chave determina o provedor.
-- **Jev** (`window.JEV_DECIDE_URL` ou `localStorage.jevDecideUrl`) — roteamento Pro/Lite e rerank do RAG. Defina a variável apontando para o endpoint `/api/decide`, que aceita chave do Vercel AI Gateway ou da TypeSafe AI no `.env`.
+- **Jev** (`vck_...` do Vercel AI Gateway ou chave da TypeSafe AI) — roteamento Pro/Lite e rerank do RAG. Informe no campo "Jev" nas Configurações; a chamada vai direto do navegador ao provedor.
 
 ## Arquitetura
 
@@ -146,9 +151,7 @@ Modelo
 ## Estrutura do projeto
 
 ```
-darkforest.html   # Aplicação completa (HTML + CSS + JS)
-api/decide.js     # Vercel Function (Node 22) — decisões via Jev (opcional)
-package.json      # Dependência da função (SDK "ai")
+darkforest.html   # Aplicação completa (HTML + CSS + JS), incluindo a camada Jev BYOK
 .env              # Chaves de API (local, não versionado)
 .gitignore        # Ignora segredos (.env, chaves, chatgpt.js)
 ```
@@ -156,7 +159,7 @@ package.json      # Dependência da função (SDK "ai")
 ## Segurança
 
 - As chaves da OpenAI e dos embeddings são utilizadas apenas pelo navegador, enviadas exclusivamente para os provedores correspondentes.
-- A chave do Jev (`JEV_API_KEY`) permanece no ambiente da função da Vercel, nunca no HTML.
+- A chave do Jev fica apenas no `localStorage` do usuário e sai do navegador somente para o provedor escolhido (Vercel AI Gateway ou TypeSafe AI).
 - Arquivos `.env`, `chatgpt.js`, `chave_api.js` e `*.key` são ignorados pelo Git e não devem ser commitados.
 - Em hospedagens públicas (por exemplo, GitHub Pages), cada usuário deve fornecer suas próprias credenciais.
 
@@ -164,7 +167,7 @@ package.json      # Dependência da função (SDK "ai")
 
 - HTML5 / CSS3 / JavaScript
 - OpenAI API (Responses API e Chat Completions)
-- Jev (Vercel AI Gateway ou API TypeSafe AI)
+- Jev BYOK direto do navegador (Vercel AI Gateway ou API TypeSafe AI)
 - Gemini Embeddings
 - PDF.js
 - highlight.js

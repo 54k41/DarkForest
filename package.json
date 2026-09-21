@@ -1,11 +1,4 @@
 {
   "name": "darkforest",
-  "private": true,
-  "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "ai": "^7"
-  }
+  "private": true
 }

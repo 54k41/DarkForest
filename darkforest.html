@@ -1164,6 +1164,13 @@
                     <div id="embKeyMsg" style="font-size: 0.75rem; color: var(--danger); display: none;"></div>
                     <button class="btn-action-primary" onclick="saveEmbKeys()">Salvar chave</button>
                 </div>
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
+                    <span class="settings-row-label" style="font-weight: 600;">Jev (decisões do Auto Eco — opcional)</span>
+                    <input type="password" id="jevKeyInput" class="search-input" placeholder="Chave do Jev (Vercel vck.… ou TypeSafe AI)" autocomplete="off" onkeydown="if(event.key==='Enter') saveJevKey()">
+                    <div id="jevKeyMsg" style="font-size: 0.75rem; color: var(--danger); display: none;"></div>
+                    <button class="btn-action-primary" onclick="saveJevKey()">Salvar chave do Jev</button>
+                    <span style="font-size: 0.72rem; color: var(--text-muted, #888);">Cada usuário usa a própria chave, direto do navegador para o provedor. Sem chave, o Auto Eco usa heurísticas locais.</span>
+                </div>
             </div>
 
             <!-- Seção 2: Aparência -->
@@ -1795,6 +1802,30 @@
             const p = resolveEmbProvider();
             return p ? { mode: 'embeddings', provider: p } : { mode: 'classic', provider: null };
         }
+        // Chave do Jev (BYOK): cada usuário usa a própria, direto do navegador.
+        // Vercel AI Gateway (vck_.../vck-...) ou API da TypeSafe AI — o prefixo
+        // decide o provedor. Override manual via window.JEV_API_KEY.
+        function jevApiKey() {
+            if (typeof window !== 'undefined' && window.JEV_API_KEY) return String(window.JEV_API_KEY).trim();
+            try { return String(localStorage.getItem('jev_api_key') || '').trim(); } catch (e) { return ''; }
+        }
+        function saveJevKey() {
+            const msgEl = document.getElementById('jevKeyMsg');
+            if (msgEl) { msgEl.style.display = 'none'; msgEl.style.color = 'var(--danger)'; }
+            const val = String((document.getElementById('jevKeyInput') || {}).value || '').trim();
+            if (val.length < 10) {
+                if (msgEl) { msgEl.textContent = 'Cole a chave inteira (Vercel vck.… ou TypeSafe AI).'; msgEl.style.display = 'block'; }
+                return;
+            }
+            try { localStorage.setItem('jev_api_key', val); } catch (e) {}
+            document.getElementById('jevKeyInput').value = '';
+            if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.style.display = 'block'; msgEl.textContent = 'Chave do Jev salva (' + (jevProviderFor(val) === 'gateway' ? 'Vercel AI Gateway' : 'TypeSafe AI') + ').'; }
+            setTimeout(() => { if (msgEl) msgEl.style.display = 'none'; closeSettingsModal(); }, 1200);
+        }
+        function confirmRemoveJevKey(btn) {
+            try { localStorage.removeItem('jev_api_key'); } catch (e) {}
+            if (btn) btn.style.display = 'none';
+        }
         function saveEmbKeys() {
             const msgEl = document.getElementById('embKeyMsg');
             if (msgEl) { msgEl.style.display = 'none'; msgEl.style.color = 'var(--danger)'; }
@@ -2146,7 +2177,7 @@
 
         // ---- rerank Jev: dos top-k por cosseno, quais respondem ESTA pergunta? ----
         async function rerankChunksJe(candidatos, question, keep = 5) {
-            if (!jevDecideUrl() || !candidatos || candidatos.length === 0) {
+            if (!jevReady() || !candidatos || candidatos.length === 0) {
                 return (candidatos || []).slice(0, keep); // sem Jev: segue a ordem do cosseno
             }
             const items = candidatos.map(c => ({
@@ -3841,24 +3872,28 @@
 
         // ============ AUTO ECO: camada Jev (System One) ============
         // O Jev é um modelo de decisão que responde perguntas tipadas SEM gerar
-        // texto. Ele roda server-side em /api/decide (ver api/decide.js) porque a
-        // chave (Vercel AI Gateway ou API da TypeSafe AI — o bridge detecta pelo
-        // prefixo) não pode ficar no cliente. Sem backend configurado, cada ponto
-        // de uso cai na heurística local com a MESMA interface: basta definir
-        // window.JEV_DECIDE_URL (ou localStorage.jevDecideUrl) que o Jev assume,
-        // sem mudar mais nada.
+        // texto. Cada usuário usa a PRÓPRIA chave (BYOK), informada nas
+        // Configurações (localStorage.jev_api_key ou window.JEV_API_KEY) e o
+        // navegador fala direto com o provedor — sem backend:
+        //   vck_.../vck-... -> Vercel AI Gateway (/v4/ai/evaluation-model, CORS aberto)
+        //   outra chave     -> API original da TypeSafe AI (/v1/systemone)
+        // Sem chave configurada, cada ponto de uso cai na heurística local com a
+        // MESMA interface — o chat NUNCA quebra por causa do Jev.
         // O Jev NÃO é usado para: gerar resposta, gerar título criativo (só
         // classificar categoria), renderizar markdown ou contar tokens — aí é GPT.
         const SYSTEM_PROMPT_THINK = "Você é um assistente avançado. REGRA ABSOLUTA: Antes de responder, raciocine passo a passo. Se a API suportar envio nativo de raciocínio, utilize-o. Caso contrário, inicie sua resposta com as tags <think> e </think>.";
         const SYSTEM_PROMPT_FAST = "Você é um assistente direto e objetivo. Responda sem mostrar raciocínio, sem tags <think>.";
         const JEV_TIMEOUT_MS = 2500;
+        const JEV_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v4/ai/evaluation-model';
+        const JEV_TYPESAFE_URL = 'https://api.typesafe.ai/v1/systemone';
         // Carimbo de versão: confira no console (F12) se o roteador carregado é este.
-        console.log('[Auto Eco] roteador v9 carregado (Pro/Lite + effort pelo Jev, RAG em 2 modos: vetorial com chave / clássico sem chave; embeddings Gemini via gemini-embedding-2, chaves AQ. aceitas; resposta parcial preservada em troca de chat/erro)');
+        console.log('[Auto Eco] roteador v10 carregado (Pro/Lite + effort pelo Jev BYOK direto do navegador: Vercel vck_ → Gateway, outra → TypeSafe; RAG em 2 modos: vetorial com chave / clássico sem chave; resposta parcial preservada em troca de chat/erro)');
 
-        function jevDecideUrl() {
-            if (typeof window === 'undefined') return null;
-            if (window.JEV_DECIDE_URL) return String(window.JEV_DECIDE_URL);
-            try { return localStorage.getItem('jevDecideUrl') || null; } catch (e) { return null; }
+        function jevProviderFor(key) {
+            return /^vck[_-]/.test(String(key || '')) ? 'gateway' : 'typesafe';
+        }
+        function jevReady() {
+            return !!jevApiKey();
         }
 
         // Heurística local: mesma decisão que o Jev tomaria, sem chamada de rede.
@@ -3949,7 +3984,7 @@
         // ============ #1 PRÉ-DECISOR (handleSend) ============
         // 1 único evaluate com 6 perguntas paralelas decide: modelo (eco/think),
         // jailbreak (bloqueia antes de gastar $), PII (avisa o usuário), tipo do
-        // pedido, complexidade e idioma. Sem backend, as heurísticas locais cobrem
+        // pedido, complexidade e idioma. Sem chave, as heurísticas locais cobrem
         // o essencial (modelo + PII + jailbreak conservador).
         // Retorna { modelo_real, fonte, safety:{bloquear,motivo,avisarPII}, tipoPedido, complexidade, idioma }.
         async function computePreDecision(chat, userTextInput, attachmentsInput) {
@@ -3974,7 +4009,7 @@
             }
             const attNames = attachments.map(a => a.name || a.type).filter(Boolean);
 
-            if (jevDecideUrl()) {
+            if (jevReady()) {
                 const ultimas = hist.slice(-5).map(m => {
                     if (!m) return '';
                     const t = m.role === 'user' ? (m.text || '') : (typeof m.content === 'string' ? m.content : '');
@@ -4076,26 +4111,111 @@
             document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
         }
 
-        // ---- Primitivas de chamada ao /api/decide ----
-        // Contrato: POST { state, questions } -> { questions: { nome: valor } }
-        //           POST { items: [{state, questions}, ...] } -> [ { questions: {...} }, ... ]
-        // Qualquer falha (sem URL, rede, timeout, HTTP != 200) retorna null e o
-        // chamador usa a heurística local — o chat NUNCA quebra por causa do Jev.
-        async function jevEvaluate(state, questions) {
-            const url = jevDecideUrl();
-            if (!url) return null;
+        // ---- Primitivas de chamada direta ao provedor do Jev (BYOK) ----
+        // O front fala um schema simplificado (choice com `options`, score com a
+        // escala no texto); o adaptador converte para `criteria` que os provedores
+        // exigem e normaliza as respostas de volta. Contrato interno:
+        //   jevEvaluate(state, questions)  -> { id: valor } ou null
+        //   jevEvaluateBatch(items)        -> [ { id: valor }, ... ] ou null (all-or-nothing)
+        // Qualquer falha (sem chave, rede, timeout, HTTP != 200, CORS) retorna null
+        // e o chamador usa a heurística local — o chat NUNCA quebra por causa do Jev.
+        function jevToSpecQuestion(q, noulNaming) {
+            const type = (q && q.type) || 'boolean';
+            const out = { type, instructions: String((q && q.instructions) || '') };
+            let rubric = null;
+            if (type === 'boolean') {
+                if (noulNaming) out.type = 'noul';
+                if (q.criteria && (q.criteria.true || q.criteria.false)) {
+                    out.criteria = { true: q.criteria.true, false: q.criteria.false };
+                }
+            } else if (type === 'choice') {
+                out.criteria = (q.criteria && typeof q.criteria === 'object' && !Array.isArray(q.criteria))
+                    ? q.criteria
+                    : Object.fromEntries((q.options || []).map(o => [o, null]));
+            } else if (type === 'score') {
+                if (Array.isArray(q.criteria) && q.criteria.length >= 2) {
+                    out.criteria = q.criteria;
+                    rubric = { levels: q.criteria.length, base: 0 };
+                } else if (/de\s+1\b[\s\S]{0,40}\ba\s+5\b/i.test(out.instructions)) {
+                    // 'De 1 muito simples a 5 muito complexo' -> rubrica 1..5
+                    rubric = { levels: 5, base: 1, labels: ['1 — mínimo', '2 — baixo', '3 — médio', '4 — alto', '5 — máximo'] };
+                    out.criteria = rubric.labels;
+                } else {
+                    const n = 10;
+                    rubric = { levels: n, base: 0, labels: Array.from({ length: n }, (_, i) => (i / (n - 1)).toFixed(1)) };
+                    out.criteria = rubric.labels;
+                }
+            }
+            return { question: out, rubric };
+        }
+
+        // O score dos provedores vem como índice ponderado da rubrica (0-based);
+        // o front espera a escala da instrução (0..1 ou 1..5). Com a legenda
+        // numérica (nossas rubricas), a média ponderada já sai na escala certa.
+        function jevScoreToClientScale(a, rubric) {
+            const s = (a && typeof a.score === 'number') ? a.score : NaN;
+            if (Number.isNaN(s)) return NaN;
+            const legend = (a && a.legend && typeof a.legend === 'object') ? a.legend : null;
+            if (legend && a.probabilities && typeof a.probabilities === 'object') {
+                let exp = 0, total = 0, ok = true;
+                for (const [idx, p] of Object.entries(a.probabilities)) {
+                    const v = parseFloat(legend[idx]);
+                    if (!Number.isFinite(v)) { ok = false; break; }
+                    if (typeof p === 'number') { exp += v * p; total += p; }
+                }
+                if (ok && total > 0) return exp / total;
+            }
+            if (rubric && rubric.base === 1) return s + 1;
+            if (rubric && rubric.levels > 1) return s / (rubric.levels - 1);
+            return s;
+        }
+
+        function jevAnswerToClient(a, rubric) {
+            if (!a || typeof a !== 'object') return null;
+            if (a.type === 'noul' || typeof a.noul === 'number') return { probability: a.noul };
+            if (a.type === 'boolean' || typeof a.probability === 'number' || typeof a === 'boolean') {
+                return { probability: typeof a === 'boolean' ? (a ? 1 : 0) : a.probability };
+            }
+            if (a.type === 'choice' || (a.choice !== undefined && a.probabilities)) {
+                return { choice: a.choice, probabilities: a.probabilities, confidence: a.confidence };
+            }
+            if (a.type === 'score' || typeof a.score === 'number') {
+                const v = jevScoreToClientScale(a, rubric);
+                return Number.isNaN(v) ? null : { score: v };
+            }
+            return null;
+        }
+
+        // Uma decisão = uma chamada HTTP ao provedor. Retorna { id: valor } ou null.
+        async function jevCallOne(state, questions) {
+            const key = jevApiKey();
+            if (!key) return null;
+            const pairs = Object.entries(questions || {}).map(([id, q]) => [id, jevToSpecQuestion(q, jevProviderFor(key) === 'typesafe')]);
+            const specQuestions = Object.fromEntries(pairs.map(([id, p]) => [id, p.question]));
+            const rubrics = Object.fromEntries(pairs.map(([id, p]) => [id, p.rubric]));
+
+            const gateway = jevProviderFor(key) === 'gateway';
+            const url = gateway ? JEV_GATEWAY_URL : JEV_TYPESAFE_URL;
+            const body = gateway
+                ? { state: String(state || '').slice(0, 32000), questions: specQuestions }
+                : { model: 'jev-latest', state: String(state || '').slice(0, 32000), questions: specQuestions };
+            const headers = gateway
+                ? { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json', 'ai-gateway-protocol-version': '0.0.1', 'ai-evaluation-model-specification-version': '4', 'ai-model-id': 'typesafe-ai/jev' }
+                : { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' };
+
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), JEV_TIMEOUT_MS);
             try {
-                const resp = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ state, questions }),
-                    signal: controller.signal
-                });
+                const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
                 if (!resp.ok) return null;
                 const data = await resp.json();
-                return (data && data.questions) ? data.questions : data;
+                const answers = (data && (data.answers || data.questions)) || {};
+                const out = {};
+                for (const [id, a] of Object.entries(answers)) {
+                    const v = jevAnswerToClient(a, rubrics[id]);
+                    if (v !== null) out[id] = v;
+                }
+                return out;
             } catch (e) {
                 return null;
             } finally {
@@ -4103,28 +4223,18 @@
             }
         }
 
-        // Decisões paralelas em lote (padrão "6 estados · N perguntas · 1 forward pass")
+        async function jevEvaluate(state, questions) {
+            if (!jevReady()) return null;
+            return jevCallOne(state, questions);
+        }
+
+        // Decisões paralelas em lote (padrão "6 estados · N perguntas · 1 forward pass").
+        // All-or-nothing, como o bridge antigo: qualquer item falho = sem lote.
         async function jevEvaluateBatch(items) {
-            const url = jevDecideUrl();
-            if (!url || !Array.isArray(items) || items.length === 0) return null;
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), Math.max(JEV_TIMEOUT_MS, items.length * 150));
-            try {
-                const resp = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items }),
-                    signal: controller.signal
-                });
-                if (!resp.ok) return null;
-                const data = await resp.json();
-                if (!Array.isArray(data) || data.length !== items.length) return null;
-                return data.map(d => (d && d.questions) ? d.questions : d);
-            } catch (e) {
-                return null;
-            } finally {
-                clearTimeout(timer);
-            }
+            if (!jevReady() || !Array.isArray(items) || items.length === 0) return null;
+            const results = await Promise.all(items.map(it => jevCallOne(it.state, it.questions)));
+            if (results.some(r => !r)) return null;
+            return results;
         }
 
         // Normalizadores defensivos: o Jev pode devolver número puro, {probability},
@@ -4168,7 +4278,7 @@
             outro: null
         };
         async function jevTitleFromCategory(userText) {
-            if (!jevDecideUrl()) return null;
+            if (!jevReady()) return null;
             const q = await jevEvaluate(String(userText || '').slice(0, 600), {
                 categoria: { type: 'choice', options: Object.keys(TITLE_CATEGORIES), instructions: 'Categoria que melhor descreve o assunto desta mensagem, para servir de titulo de conversa.' }
             });
@@ -4194,7 +4304,7 @@
             return '(mídia)';
         }
         async function jevFilterRelevantMessages(slicedHistory) {
-            if (!jevDecideUrl() || slicedHistory.length <= 6) return null;
+            if (!jevReady() || slicedHistory.length <= 6) return null;
             const keep = 6;
             const older = slicedHistory.slice(0, slicedHistory.length - keep);
             let pergunta = '';
@@ -4230,7 +4340,7 @@
         const DOC_TRIAGE_MIN_CHARS = 4000;
         const DOC_TRIAGE_MAX_CHARS = 6000;
         async function triageDocument(name, text) {
-            if (!jevDecideUrl() || !text || text.length < DOC_TRIAGE_MIN_CHARS) return text;
+            if (!jevReady() || !text || text.length < DOC_TRIAGE_MIN_CHARS) return text;
             const q = await jevEvaluate(`documento: ${name}\nconteudo: ${text.slice(0, 3000)}`, {
                 tipo_doc: { type: 'choice', options: ['contrato', 'codigo', 'artigo', 'nota_fiscal', 'outro'], instructions: 'Tipo do documento.' },
                 precisa_leitura_completa: { type: 'boolean', instructions: 'O documento inteiro precisa ir ao modelo, ou um trecho inicial basta para a proxima pergunta? Documentos longos e estruturados onde se costuma perguntar detalhes pontuais = false.' },
@@ -4252,7 +4362,7 @@
         // Verifica anexação NO JEITO CERTO (com checagem de resultado relevante):
         // + groundedness: a resposta usou os trechos recuperados, ou alucinou?
         async function jevPosResposta(pergunta, resposta, trechosUsados) {
-            if (!jevDecideUrl()) return null;
+            if (!jevReady()) return null;
             const fontes = (trechosUsados || []).slice(0, 5).map((t, i) => `[fonte ${i + 1}] ${String(t).slice(0, 600)}`).join('\n');
             const state = `pergunta: ${String(pergunta || '').slice(0, 2000)}\nresposta: ${String(resposta || '').slice(0, 4000)}`
                 + (fontes ? `\nfontes_recuperadas:\n${fontes}` : '\n(sem fontes recuperadas)');
