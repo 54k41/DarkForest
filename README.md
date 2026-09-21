@@ -2,7 +2,7 @@
 
 Chatbot web minimalista, sem build e sem instalação, com roteamento inteligente de modelos via Jev e RAG vetorial para documentos.
 
-Abra o `darkforest.html`, configure sua chave e use.
+Abra o `index.html`, configure sua chave e use.
 
 ![DarkForest](assets/screenshot.png)
 
@@ -41,7 +41,7 @@ Chaves e dados de uso permanecem no navegador sempre que possível.
 ## Início rápido
 
 ```text
-1. Baixe darkforest.html
+1. Baixe index.html
 2. Abra no navegador
 3. Informe sua chave OpenAI
 4. Comece a conversar
@@ -151,7 +151,7 @@ Modelo
 ## Estrutura do projeto
 
 ```
-darkforest.html   # Aplicação completa (HTML + CSS + JS), incluindo a camada Jev BYOK
+index.html   # Aplicação completa (HTML + CSS + JS), incluindo a camada Jev BYOK
 .env              # Chaves de API (local, não versionado)
 .gitignore        # Ignora segredos (.env, chaves, chatgpt.js)
 ```

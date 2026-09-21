@@ -19,7 +19,7 @@ Você tem **duas opções** (escolha uma):
 
 ### Opção A — Pela interface (mais simples)
 
-1. Abra o `darkforest.html` no navegador
+1. Abra o `index.html` no navegador
 2. Cole a chave no campo de configuração do chat
 3. A chave fica salva no `localStorage` do navegador
 
@@ -70,7 +70,7 @@ O seletor escolhe o par de modelos; o **Jev** (ou, sem backend, a heurística lo
 ```bash
 # Python
 python -m http.server 8000
-# depois acesse http://localhost:8000/darkforest.html
+# depois acesse http://localhost:8000/index.html
 ```
 
 ---
