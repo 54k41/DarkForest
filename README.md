@@ -2,7 +2,7 @@
 
 Chatbot web minimalista, sem build e sem instalação, com roteamento inteligente de modelos via Jev e RAG vetorial para documentos.
 
-Abra o `index.html`, configure sua chave e use.
+Abra o `index.html`, configure sua chave e use — ou acesse a [versão publicada](https://54k41.github.io/darkforest-swordholder/).
 
 ![DarkForest](assets/screenshot.png)
 
@@ -37,6 +37,15 @@ Proteção de entrada, avaliação de saída e organização automática das con
 ### Local-first
 
 Chaves e dados de uso permanecem no navegador sempre que possível.
+
+### Confiabilidade
+
+- **Respostas parciais nunca se perdem**: interrupções (botão Parar), erros de stream e troca de conversa preservam o que já chegou, marcado como "[Geração interrompida]".
+- **Falha da API não apaga dados**: editar uma mensagem ou regenerar uma resposta só remove o conteúdo antigo (histórico e imagens) depois que a substituta chega; em erro, tudo é restaurado automaticamente.
+- **Retry limpo**: "Tentar novamente" reenvia a pergunta original sem arrastar o parcial interrompido para o payload, e as imagens anexadas voltam a ser incluídas.
+- **Parar funciona sempre**: o botão Parar cancela desde o pré-processamento (decisão de modelo, payload e RAG), antes de qualquer chamada à API — e nada é enviado depois de abortado.
+- **Persistência resiliente**: se o IndexedDB ficar temporariamente indisponível (ex.: atualização de versão aberta por outra aba), as escritas caem em memória e são reconciliadas no banco quando a conexão volta; nada enviado nesse intervalo se perde.
+- **Recusas interrompidas são salvas**: uma recusa do modelo exibida em streaming é persistida mesmo que a geração seja cancelada.
 
 ## Início rápido
 
@@ -151,10 +160,13 @@ Modelo
 ## Estrutura do projeto
 
 ```
-index.html   # Aplicação completa (HTML + CSS + JS), incluindo a camada Jev BYOK
-.env              # Chaves de API (local, não versionado)
-.gitignore        # Ignora segredos (.env, chaves, chatgpt.js)
+index.html       # Aplicação completa (HTML + CSS + JS), incluindo a camada Jev BYOK
+INSTRUCOES.md    # Guia de uso
+assets/          # Imagens (screenshot etc.)
+.gitignore       # Ignora segredos e arquivos locais
 ```
+
+Arquivos locais opcionais, ignorados pelo Git: `.env` (chaves via importação), `chatgpt.js` / `chave_api.js` (chaves em JS) e `sync-env.mjs` (ferramenta local).
 
 ## Segurança
 
