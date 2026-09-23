@@ -9,6 +9,19 @@ chave_api.js
 # OS metadata
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Editor / IDE
+*.swp
+.vscode/
+.idea/
+
+# Local artifacts and backups
+*.bak
+*.bak.*
+*.tmp
+*.log
+.darkforest-snapshot.html
 
 # Dependencies
 node_modules/
