@@ -999,6 +999,30 @@
         .settings-row-label { font-size: 0.86rem; font-weight: 500; color: var(--text-dark); }
         .settings-row-desc { font-size: 0.75rem; color: var(--text-muted); }
 
+        /* Layout horizontal das Configurações: painéis em grade 2×2 em vez de
+           coluna única — cabe na tela a 100% de zoom. Em telas estreitas,
+           volta a empilhar. */
+        #settingsModal .modal-card {
+            width: min(94vw, 980px);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            align-items: start;
+        }
+        #settingsModal .settings-section {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+        #settingsModal .settings-section:last-child { border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+        @media (max-width: 860px) {
+            #settingsModal .settings-grid { grid-template-columns: 1fr; }
+        }
+
         /* Segmented Button / Theme Toggle */
         .segmented-control {
             display: flex;
@@ -1104,6 +1128,7 @@
                 </button>
             </div>
 
+            <div class="settings-grid">
             <!-- Seção 1: Chave de API -->
             <div class="settings-section">
                 <div class="settings-section-title">Chave da API</div>
@@ -1159,19 +1184,23 @@
                     </div>
                     <div id="embStatusSub" class="status-box-sub">Documentos vão inteiros no prompt. Adicione uma chave abaixo para ativar o RAG vetorial.</div>
                 </div>
-                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
-                    <input type="password" id="embKeyInput" class="search-input" placeholder="Chave para Embeddings (Gemini AQ.… / AIza… ou NVIDIA nvapi-…)" autocomplete="off" onkeydown="if(event.key==='Enter') saveEmbKeys()">
-                    <div id="embKeyMsg" style="font-size: 0.75rem; color: var(--danger); display: none;"></div>
-                    <button class="btn-action-primary" onclick="saveEmbKeys()">Salvar chave</button>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <input type="password" id="embKeyInput" class="search-input" style="flex: 1; min-width: 0;" placeholder="Chave de Embeddings (Gemini AQ.… / AIza…)" autocomplete="off" onkeydown="if(event.key==='Enter') saveEmbKeys()">
+                    <button class="btn-action-primary" style="width: auto; flex-shrink: 0; padding: 9px 16px;" onclick="saveEmbKeys()">Salvar</button>
                 </div>
+                <div id="embKeyMsg" style="font-size: 0.75rem; color: var(--danger); display: none;"></div>
                 <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px;">
-                    <span class="settings-row-label" style="font-weight: 600;">Jev (decisões do Auto Eco — opcional)</span>
-                    <input type="password" id="jevKeyInput" class="search-input" placeholder="Chave do Jev (Vercel vck.… ou TypeSafe AI)" autocomplete="off" onkeydown="if(event.key==='Enter') saveJevKey()">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="settings-row-label" style="font-weight: 600;">Jev (decisões do Auto Eco — opcional)</span>
+                        <button class="icon-btn danger" id="btnRemoveJev" style="display: none;" onclick="confirmRemoveJevKey(this)" title="Remover chave do Jev" aria-label="Remover chave do Jev">
+                            <svg viewBox="0 0 24 24" style="width: 14px; height: 14px;" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="password" id="jevKeyInput" class="search-input" style="flex: 1; min-width: 0;" placeholder="Chave do Jev (Vercel vck.… ou TypeSafe AI)" autocomplete="off" onkeydown="if(event.key==='Enter') saveJevKey()">
+                        <button class="btn-action-primary" style="width: auto; flex-shrink: 0; padding: 9px 16px;" onclick="saveJevKey()">Salvar</button>
+                    </div>
                     <div id="jevKeyMsg" style="font-size: 0.75rem; color: var(--danger); display: none;"></div>
-                    <button class="btn-action-primary" onclick="saveJevKey()">Salvar chave do Jev</button>
-                    <button class="icon-btn danger" id="btnRemoveJev" style="display: none; align-self: flex-start;" onclick="confirmRemoveJevKey(this)" title="Remover chave do Jev" aria-label="Remover chave do Jev">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
                     <span style="font-size: 0.72rem; color: var(--text-muted, #888);">Cada usuário usa a própria chave, direto do navegador para o provedor. Sem chave, o Auto Eco usa heurísticas locais.</span>
                 </div>
             </div>
@@ -1216,6 +1245,7 @@
                         Importar backup
                     </button>
                 </div>
+            </div>
             </div>
         </div>
     </div>
@@ -1304,6 +1334,43 @@
 
     <!-- ================= JAVASCRIPT ================= -->
     <script>
+        // ---- Carregador de .env (MODO SERVIDOR) ----
+        // Serve o app via http (ex.: python -m http.server 8000) e as chaves do
+        // .env são injetadas automaticamente no localStorage. Só preenche o que
+        // ainda está vazio — chave digitada na UI nunca é sobrescrita. Em file://
+        // o fetch não funciona (silencioso); nesse caso use o chatgpt.js
+        // regenerado por sync-env.mjs.
+        (async () => {
+            try {
+                const resp = await fetch('./.env', { cache: 'no-store' });
+                if (!resp.ok) return;
+                const vars = {};
+                for (const line of String(await resp.text()).split(/\r?\n/)) {
+                    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
+                    if (m && m[2] && !line.trim().startsWith('#')) vars[m[1]] = m[2];
+                }
+                const seed = (storageKey, value) => {
+                    if (!value) return false;
+                    try {
+                        if (localStorage.getItem(storageKey)) return false;
+                        localStorage.setItem(storageKey, value);
+                        return true;
+                    } catch (e) { return false; }
+                };
+                const carregadas = [];
+                const openai = String(vars.OPENAI_API_KEY || '').trim();
+                if (openai.startsWith('sk-') && seed('openai_api_key', openai)) carregadas.push('OpenAI');
+                if (seed('jev_api_key', vars.JEV_API_KEY)) carregadas.push('Jev');
+                if (seed('emb_api_key', vars.GEMINI_API_KEY)) carregadas.push('Embeddings');
+                if (carregadas.length > 0) {
+                    console.log('[Env] chaves carregadas do .env:', carregadas.join(', '));
+                    try { if (typeof updateApiKeyUI === 'function') updateApiKeyUI(); } catch (e) {}
+                    try { if (typeof updateJevKeyUI === 'function') updateJevKeyUI(); } catch (e) {}
+                    try { if (typeof updateEmbKeyUI === 'function') updateEmbKeyUI(); } catch (e) {}
+                }
+            } catch (e) { /* file:// ou .env ausente: segue no fluxo normal */ }
+        })();
+
         const DB_NAME = "ChatBoxAI_DB";
         let db = null;
         // false até initDB provar o contrário: evita a janela "db = null com
@@ -1312,6 +1379,37 @@
         // Fallback em memória: mantém o chat funcional mesmo sem IndexedDB
         // (origem file:// restrita, banco bloqueado, modo privado etc.)
         const memoryStore = { chats: new Map(), images: new Map(), embeddings: new Map() };
+
+        // Escritas feitas enquanto o banco está indisponível (janela de
+        // versionchange entre close e reopen, modo memória etc.): são
+        // reconciliadas no IndexedDB assim que a conexão reabre. Sem isso, o
+        // que fosse enviado nesse intervalo ficava só na memória — e a
+        // reabertura nunca fazia o replay (a gravação atômica seguinte lia o
+        // registro defasado do banco e derrubava a mensagem do usuário).
+        const pendingIDBWrites = new Map(); // "store|id" -> 'put' | 'del' (última operação vence)
+        function markMemoryWrite(store, id, op) {
+            try { pendingIDBWrites.set(`${store}|${String(id)}`, op); } catch (e) { /* noop */ }
+        }
+        async function flushMemoryWritesToDB() {
+            if (!db || !dbAvailable || pendingIDBWrites.size === 0) return;
+            const entries = Array.from(pendingIDBWrites.entries());
+            pendingIDBWrites.clear();
+            for (const [key, op] of entries) {
+                const sep = key.indexOf('|');
+                const store = key.slice(0, sep);
+                const id = key.slice(sep + 1);
+                try {
+                    if (op === 'del') {
+                        await deleteFromDB(store, id);
+                    } else {
+                        const rec = memoryStore[store] ? memoryStore[store].get(id) : undefined;
+                        if (rec !== undefined) await saveToDB(store, rec);
+                    }
+                } catch (err) {
+                    console.warn(`[IndexedDB] falha ao reconciliar ${store}/${id} após reabertura:`, err);
+                }
+            }
+        }
 
         function generateUniqueId(prefix = 'id') {
             if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -1361,6 +1459,9 @@
                     db = reopened;
                     dbAvailable = true;
                     watchVersionChanges(db);
+                    // Reconcilia no banco o que foi escrito em memória durante
+                    // a janela sem conexão (senão reload após reabrir perdia).
+                    flushMemoryWritesToDB();
                 }).catch(err => {
                     console.warn('[IndexedDB] reabertura falhou — escrevendo em memória até recarregar:', err);
                     dbAvailable = false;
@@ -1394,7 +1495,7 @@
         }
 
         async function saveToDB(store, data) {
-            if (!dbAvailable || !db) { memoryStore[store].set(data.id, data); return; }
+            if (!dbAvailable || !db) { memoryStore[store].set(data.id, data); markMemoryWrite(store, data.id, 'put'); return; }
             return new Promise((resolve, reject) => {
                 try {
                     let tx = db.transaction(store, 'readwrite');
@@ -1453,7 +1554,7 @@
         }
 
         async function deleteFromDB(store, id) {
-            if (!dbAvailable || !db) { memoryStore[store].delete(id); return; }
+            if (!dbAvailable || !db) { memoryStore[store].delete(id); markMemoryWrite(store, id, 'del'); return; }
             return new Promise((resolve, reject) => {
                 try {
                     let tx = db.transaction(store, 'readwrite');
@@ -1468,10 +1569,17 @@
         // gravações concorrentes (ex.: título automático × resposta salva) se sobrescrevam.
         function updateChatInDB(chatId, mutateFn) {
             if (!dbAvailable || !db) {
-                const record = memoryStore.chats.get(chatId);
+                // Fontes de verdade no modo memória: memoryStore (gravações feitas
+                // sem banco) e, em falta, allChats — chats criados DEPOIS do boot
+                // nunca passaram pela hidratação e não podem virar no-op.
+                let record = memoryStore.chats.get(chatId);
+                if (!record && Array.isArray(allChats)) {
+                    record = allChats.find(c => c && String(c.id) === String(chatId)) || null;
+                }
                 if (record) {
                     mutateFn(record);
                     memoryStore.chats.set(chatId, record);
+                    markMemoryWrite('chats', chatId, 'put');
                     return Promise.resolve(record);
                 }
                 return Promise.resolve(null);
@@ -1485,8 +1593,18 @@
                     // nesse caso nenhum put acontece, então null é o correto).
                     let savedRecord = null;
                     req.onsuccess = () => {
-                        const chatRecord = req.result;
+                        let chatRecord = req.result;
                         if (chatRecord) {
+                            // Reconciliação na própria gravação atômica: se este
+                            // chat tem escritas em memória ainda não persistidas
+                            // (janela de versionchange), a mutação parte DELAS em
+                            // vez de partir do registro defasado do banco — que
+                            // derrubava, por exemplo, a mensagem recém-enviada.
+                            const memRecord = (pendingIDBWrites.get('chats|' + String(chatId)) === 'put')
+                                ? (memoryStore.chats.get(chatId)
+                                    || (Array.isArray(allChats) ? allChats.find(c => c && String(c.id) === String(chatId)) : null))
+                                : undefined;
+                            if (memRecord) chatRecord = JSON.parse(JSON.stringify(memRecord));
                             mutateFn(chatRecord);
                             const putReq = store.put(chatRecord);
                             putReq.onsuccess = () => { savedRecord = chatRecord; };
@@ -1722,7 +1840,7 @@
         }
 
         // ================= EMBEDDINGS / RAG (dois modos internos) =================
-        // MODO A (embeddings): há chave ativa de embeddings (Gemini e/ou NVIDIA).
+        // MODO A (embeddings): há chave ativa de embeddings (Gemini).
         //   Documentos entram numa fila paced (respeita RPM/TPM), são divididos em
         //   chunks, embeddados, cacheados no IndexedDB e de lá em diante SÓ os
         //   chunks recuperados (cosseno top-k + rerank Jev) entram no prompt.
@@ -1731,8 +1849,7 @@
         // Nada vaza: a pergunta do usuário só sai da máquina para embeddar quando
         // o MODO A já foi ativado com chave válida.
         const EMB_PROVIDERS = {
-            gemini: { model: 'gemini-embedding-2', dim: 1536, minuteTokens: 30000, rpm: 100 },
-            nvidia: { model: 'nvidia/nemotron-3-embed-1b', dim: 512, minuteTokens: Infinity, rpm: 40 }
+            gemini: { model: 'gemini-embedding-2', dim: 1536, minuteTokens: 30000, rpm: 100 }
         };
 
         function readStoredKey(names) {
@@ -1746,15 +1863,12 @@
             }
             return null;
         }
-        // Campo único: qualquer chave salva vai para 'emb_api_key' e o formato
-        // decide o provedor. Chaves do AI Studio vêm em dois formatos:
+        // Campo único: qualquer chave salva vai para 'emb_api_key'. Chaves do
+        // AI Studio vêm em dois formatos:
         //   - clássica (legado, expira em set/2026): começa com "AIza" (ex.: AIzaSy…)
         //   - nova Auth key (padrão desde jun/2026): começa com "AQ." (ex.: AQ.Ab8…)
-        // NVIDIA: começa com "nvapi-".
         // A chave é tratada como string opaca: passa verbatim para a API (é ela
-        // quem valida de verdade); aqui só roteamos para o endpoint certo.
-        // Qualquer token longo que não seja NVIDIA é assumido como Gemini —
-        // nunca rejeitamos uma chave só pelo formato.
+        // quem valida de verdade).
         function normalizeEmbKey(raw) {
             if (!raw) return '';
             let s = String(raw).trim();
@@ -1766,41 +1880,37 @@
             const eq = s.lastIndexOf('=');
             if (eq !== -1 && s.slice(eq + 1).length >= 10) s = s.slice(eq + 1);
             s = s.replace(/^(Bearer|API_KEY|KEY)[:\s]+/i, '');
-            // extrai o token se colado em texto maior (AQ., AIza, nvapi-)
-            const m = s.match(/(nvapi-[A-Za-z0-9_\-\.\/\+=]{10,}|AIza[A-Za-z0-9_\-]{16,}|AQ\.[A-Za-z0-9_\-\.\/\+=]{10,})/);
+            // extrai o token se colado em texto maior (AQ., AIza)
+            const m = s.match(/(AIza[A-Za-z0-9_\-]{16,}|AQ\.[A-Za-z0-9_\-\.\/\+=]{10,})/);
             return m ? m[1] : s;
         }
         function detectEmbProvider(key) {
             const k = normalizeEmbKey(key);
             if (!k) return null;
-            if (/^nvapi-/i.test(k)) return 'nvidia';
+            // Chaves NVIDIA não são mais suportadas (provedor removido)
+            if (/^nvapi-/i.test(k)) return null;
             if (/^AIza/i.test(k)) return 'gemini';
             // Auth keys novas do AI Studio (ex.: AQ.Ab8…), qualquer tamanho
             if (/^AQ\./.test(k)) return 'gemini';
-            // Fallback: token opaco longo que não é NVIDIA -> assume Gemini e
-            // deixa a API validar (o formato da chave é contrato do provedor,
-            // não nosso — validar o formato aqui quebra a cada prefixo novo).
+            // Fallback: token opaco longo -> assume Gemini e deixa a API validar
+            // (o formato da chave é contrato do provedor, não nosso — validar o
+            // formato aqui quebra a cada prefixo novo).
             if (k.length >= 16 && !/\s/.test(k)) return 'gemini';
             return null;
         }
         function getStoredEmbKey() {
             if (typeof window !== 'undefined' && window.EMB_API_KEY && String(window.EMB_API_KEY).trim()) return String(window.EMB_API_KEY).trim();
-            return readStoredKey(['emb_api_key', 'gemini_api_key', 'gemini_emb_key', 'nvidia_api_key', 'nvidia_emb_key']);
+            // nvidia_* lidos só para limpeza legada — chaves NVIDIA não são mais aceitas
+            return readStoredKey(['emb_api_key', 'gemini_api_key', 'gemini_emb_key']);
         }
         function getGeminiEmbKey() {
             if (typeof window !== 'undefined' && window.GEMINI_API_KEY && String(window.GEMINI_API_KEY).trim()) return String(window.GEMINI_API_KEY).trim();
             const k = normalizeEmbKey(getStoredEmbKey());
             return (k && detectEmbProvider(k) === 'gemini') ? k : null;
         }
-        function getNvidiaEmbKey() {
-            if (typeof window !== 'undefined' && window.NVIDIA_API_KEY && String(window.NVIDIA_API_KEY).trim()) return String(window.NVIDIA_API_KEY).trim();
-            const k = normalizeEmbKey(getStoredEmbKey());
-            return (k && detectEmbProvider(k) === 'nvidia') ? k : null;
-        }
         function resolveEmbProvider() {
             // Retorna null quando NENHUMA chave ativa -> MODO B (clássico)
             if (getGeminiEmbKey()) return 'gemini';
-            if (getNvidiaEmbKey()) return 'nvidia';
             return null;
         }
         function embMode() {
@@ -1847,7 +1957,7 @@
             console.log(`[RAG] chave colada: len=${rawTrim.length} tem_espaco=${/\s/.test(rawTrim)} tem_igual=${rawTrim.includes('=')}`);
             const val = normalizeEmbKey(rawInput);
             if (!val || val.length < 10) {
-                if (msgEl) { msgEl.textContent = 'Cole sua chave (Gemini AQ.… / AIza… ou NVIDIA nvapi-…).'; msgEl.style.display = 'block'; }
+                if (msgEl) { msgEl.textContent = 'Cole sua chave (Gemini AQ.… / AIza…).'; msgEl.style.display = 'block'; }
                 return;
             }
             const prov = detectEmbProvider(val);
@@ -1857,7 +1967,7 @@
             }
             // Valida ANTES de persistir: chave recusada pela API não fica ativa
             // (antes salvava primeiro e todo envio ficava tentando embeddar à toa).
-            if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = `Chave ${prov === 'gemini' ? 'Gemini' : 'NVIDIA'} — testando…`; msgEl.style.display = 'block'; }
+            if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Chave Gemini — testando…'; msgEl.style.display = 'block'; }
             const ok = await testEmbKey(prov, val);
             if (!ok) {
                 if (msgEl) { msgEl.textContent = 'A API recusou a chave (confira-a no provedor). Nada foi salvo.'; msgEl.style.display = 'block'; }
@@ -1873,7 +1983,7 @@
                 localStorage.removeItem('nvidia_emb_key');
             } catch (e) {}
             document.getElementById('embKeyInput').value = '';
-            if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.textContent = `Chave ${prov === 'gemini' ? 'Gemini' : 'NVIDIA'} válida — salva.`; msgEl.style.display = 'block'; }
+            if (msgEl) { msgEl.style.color = 'var(--success)'; msgEl.textContent = 'Chave Gemini válida — salva.'; msgEl.style.display = 'block'; }
             updateEmbKeyUI();
             setTimeout(() => { closeSettingsModal(); }, 900);
         }
@@ -1888,9 +1998,7 @@
                     if (msgEl) { msgEl.style.color = 'var(--danger)'; msgEl.textContent = 'Nenhuma chave válida encontrada.'; msgEl.style.display = 'block'; }
                     return false;
                 }
-                const vecs = m.provider === 'gemini'
-                    ? await embedTextsGemini(['teste'], keyOverride || getGeminiEmbKey())
-                    : await embedTextsNvidia(['teste'], keyOverride || getNvidiaEmbKey());
+                const vecs = await embedTextsGemini(['teste'], keyOverride || getGeminiEmbKey());
                 const dim = Array.isArray(vecs) && vecs[0] ? vecs[0].length : 0;
                 console.log(`[RAG] chave ${m.provider} válida (dim=${dim})`);
                 return dim > 0;
@@ -1939,7 +2047,7 @@
             if (!header) return;
             const m = embMode();
             if (m.mode === 'embeddings') {
-                const name = m.provider === 'gemini' ? 'Gemini' : 'NVIDIA';
+                const name = 'Gemini';
                 header.className = 'status-box-header connected';
                 if (dot) dot.className = 'status-dot configured';
                 if (text) text.textContent = `RAG vetorial ativo (${name})`;
@@ -1992,18 +2100,6 @@
             }
             return out;
         }
-        async function embedTextsNvidia(texts, apiKey) {
-            // Endpoint OpenAI-compatível; nemotron-3-embed-1b com MRL 512
-            const resp = await fetch('https://integrate.api.nvidia.com/v1/embeddings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                body: JSON.stringify({ model: 'nvidia/nemotron-3-embed-1b', input: texts, dimensions: 512 })
-            });
-            if (!resp.ok) throw new Error(`NVIDIA embeddings HTTP ${resp.status}`);
-            const data = await resp.json();
-            return (data.data || []).sort((a, b) => a.index - b.index).map(d => d.embedding);
-        }
-
         // ---- fila com pacing: respeita o RPM/TPM do provedor ----
         const embQueue = { items: [], running: false, rpmWindow: [], tpmUsed: 0, tpmWindowStart: 0 };
         function embQueuePush(job) {
@@ -2025,7 +2121,7 @@
                         if (!limits) throw new Error(`Provedor de embeddings inválido: ${provider}`);
                         // Falha rápido se a chave sumiu no meio da fila, em vez de
                         // fazer um fetch por chunk com credencial ausente.
-                        const key = provider === 'gemini' ? getGeminiEmbKey() : getNvidiaEmbKey();
+                        const key = getGeminiEmbKey();
                         if (!key) throw new Error(`Chave de embeddings ausente para ${provider}`);
                         const estTokens = Math.ceil(String(job.texts.join(' ')).length / 4);
                         // Pacing RPM
@@ -2040,7 +2136,7 @@
                             await new Promise(r => setTimeout(r, embQueue.tpmWindowStart + 60000 - Date.now() + 200));
                             embQueue.tpmWindowStart = Date.now(); embQueue.tpmUsed = 0;
                         }
-                        const vecs = provider === 'gemini' ? await embedTextsGemini(job.texts, key) : await embedTextsNvidia(job.texts, key);
+                        const vecs = await embedTextsGemini(job.texts, key);
                         embQueue.rpmWindow.push(Date.now());
                         embQueue.tpmUsed += estTokens;
                         job.resolve(vecs);
@@ -2208,6 +2304,61 @@
                 .filter(c => !isNaN(c.jevScore) && c.jevScore > 0.5)
                 .sort((a, b) => b.jevScore - a.jevScore)
                 .slice(0, keep);
+        }
+        // ---- #4 gate de recuperação: follow-up curto ("e no item 5?") não tem
+        // termos suficientes para a busca. O Jev não gera texto, então a
+        // "reescrita" da consulta é local: concatenação com a pergunta anterior
+        // do usuário cobre o caso mais comum de busca vazia.
+        function isFollowUpCurto(pergunta, hist) {
+            if (!pergunta || String(pergunta).length > 80) return false;
+            let usuarios = 0;
+            for (let i = (hist || []).length - 1; i >= 0; i--) {
+                const m = hist[i];
+                if (!m || m.role !== 'user') continue;
+                const t = String(m.text || (typeof m.content === 'string' ? m.content : ''));
+                if (t) { usuarios++; if (usuarios >= 2) return true; }
+            }
+            return false;
+        }
+        function contextoParaFollowUp(pergunta, hist) {
+            let prev = '';
+            let achouAtual = false;
+            for (let i = (hist || []).length - 1; i >= 0; i--) {
+                const m = hist[i];
+                if (!m || m.role !== 'user') continue;
+                if (!achouAtual) { achouAtual = true; continue; } // a própria pergunta atual
+                const t = String(m.text || (typeof m.content === 'string' ? m.content : ''));
+                if (t) { prev = t; break; }
+            }
+            return prev ? `${prev} ${pergunta}` : String(pergunta);
+        }
+        // ---- resolução de conflitos: os 2 trechos de maior score podem se
+        // contradizer (duas versões do mesmo doc). Com scores próximos, o Jev
+        // escolhe: compatíveis (mantém os dois) ou qual versão tem mais suporte.
+        // Sem Jev ou inconclusivo: mantém os dois, como sempre fez.
+        const CONFLITO_DELTA_SCORE = 0.15;
+        async function resolverConflitoTrechos(top, pergunta) {
+            if (!jevReady() || !top || top.length < 2) return top || [];
+            const a = top[0], b = top[1];
+            if (typeof a.jevScore !== 'number' || typeof b.jevScore !== 'number') return top;
+            if (a.jevScore - b.jevScore >= CONFLITO_DELTA_SCORE) return top; // vencedor claro
+            const state = `pergunta: ${String(pergunta || '').slice(0, 800)}\n`
+                + `[trecho 1 — ${a.docName || 'documento'}]: ${String(a.text).slice(0, 1200)}\n`
+                + `[trecho 2 — ${b.docName || 'documento'}]: ${String(b.text).slice(0, 1200)}`;
+            const q = await jevEvaluate(state, {
+                confronto: { type: 'choice', options: ['ambos_compativeis', 'trecho_1', 'trecho_2'], instructions: 'Do the two excerpts answer the question without contradicting each other? ambos_compativeis = no conflict (complementary or about different aspects); trecho_1 / trecho_2 = they conflict on the same point, and this excerpt has the stronger or more up-to-date support.' }
+            });
+            const esc = asChoice(q ? q.confronto : null);
+            if (!esc || esc.confidence < 0.6) return top; // inconclusivo: mantém os dois
+            if (esc.top === 'trecho_1') {
+                console.log(`[RAG] conflito: "${b.docName || '?'}" descartado em favor de "${a.docName || '?'}" (Jev ${esc.confidence.toFixed(2)})`);
+                return [a, ...top.slice(2)];
+            }
+            if (esc.top === 'trecho_2') {
+                console.log(`[RAG] conflito: "${a.docName || '?'}" descartado em favor de "${b.docName || '?'}" (Jev ${esc.confidence.toFixed(2)})`);
+                return [b, ...top.slice(2)];
+            }
+            return top; // ambos_compativeis
         }
         function openSettingsModal(autoShowForm = false) {
             updateApiKeyUI();
@@ -2550,7 +2701,16 @@
                 }
 
                 allChats = await getAllFromDB('chats');
-                allChats.sort((a, b) => b.id - a.id); 
+                allChats.sort((a, b) => b.id - a.id);
+
+                // Hidrata o fallback de memória com o que foi carregado do
+                // banco: sem isso, se o IndexedDB cair DEPOIS do boot, o
+                // updateChatInDB não encontra o registro no memoryStore e a
+                // atualização vira no-op silencioso (a "regeneração" sumia ao
+                // recarregar, com a resposta antiga reaparecendo).
+                for (const c of allChats) {
+                    if (c && c.id !== undefined && c.id !== null) memoryStore.chats.set(c.id, c);
+                }
 
                 if (allChats.length === 0) await startNewChat();
                 else await loadChat(allChats[0].id);
@@ -3303,13 +3463,16 @@
         }
 
         async function submitEditedMessage(index, newText) {
-            const chat = getActiveChat(); 
+            const chat = getActiveChat();
             if (!chat || !chat.recentHistory || isNaN(index) || !chat.recentHistory[index] || isRequestPending) return;
             isRequestPending = true;
             try {
                 lockUI(true);
                 const removedMessages = chat.recentHistory.slice(index + 1);
-                await deleteImagesForMessages(removedMessages);
+                // Snapshot p/ restaurar em falha: a truncagem é commitada antes
+                // da chamada, mas as IMAGENS removidas só são apagadas depois do
+                // sucesso — uma falha da API não pode custar o histórico/imagens.
+                const historyBackup = JSON.parse(JSON.stringify(chat.recentHistory));
 
                 chat.recentHistory[index].text = newText;
                 // Limpa marcação de erro: sem isso a mensagem editada é filtrada do
@@ -3322,9 +3485,34 @@
                     delete c.recentHistory[index].status;
                     c.recentHistory = c.recentHistory.slice(0, index + 1);
                 });
-                
+
                 await loadChat(chat.id);
-                await callAPIAndSave(chat, null);
+                const res = await callAPIAndSave(chat, null).catch(err => {
+                    console.warn('[Editar] a chamada falhou:', err);
+                    return { ok: false };
+                });
+                if (res && res.ok === false) {
+                    // Falha da API: restaura as mensagens posteriores (mantendo a
+                    // edição feita) e o parcial da tentativa é descartado — as
+                    // imagens removidas continuam no banco, nada se perde.
+                    const restored = JSON.parse(JSON.stringify(historyBackup));
+                    if (restored[index]) {
+                        restored[index].text = newText;
+                        delete restored[index].status;
+                    }
+                    chat.recentHistory = restored;
+                    const fresh = await updateChatInDB(chat.id, c => {
+                        c.recentHistory = JSON.parse(JSON.stringify(restored));
+                    });
+                    if (!fresh) await saveToDB('chats', chat);
+                    else {
+                        const memChat = allChats.find(c => c.id === chat.id);
+                        if (memChat) Object.assign(memChat, fresh);
+                    }
+                    await loadChat(chat.id);
+                } else {
+                    await deleteImagesForMessages(removedMessages);
+                }
             } finally {
                 lockUI(false);
                 const msgInput = document.getElementById('messageInput');
@@ -3600,35 +3788,84 @@
 
         function handleKeyPress(event) { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); handleSend(); } }
         
-        async function handleRegenerate() { 
-            const chat = getActiveChat(); 
-            if (!chat || !Array.isArray(chat.recentHistory) || chat.recentHistory.length === 0 || isRequestPending) return; 
+        async function handleRegenerate() {
+            const chat = getActiveChat();
+            if (!chat || !Array.isArray(chat.recentHistory) || chat.recentHistory.length === 0 || isRequestPending) return;
             isRequestPending = true;
+            let popped = null;
             try {
                 lockUI(true);
                 document.querySelectorAll('.message.editing').forEach(el => {
                     el.classList.remove('editing');
                     const editContainer = el.querySelector('.edit-textarea')?.parentElement;
                     if (editContainer) editContainer.remove();
-                    const textContainer = el.querySelector('div');
+                    const textContainer = el.querySelector('div:not(.msg-attachment-grid):not(.message-actions)');
                     if (textContainer) textContainer.style.display = 'block';
                     const actionsBar = el.querySelector('.message-actions');
                     if (actionsBar) actionsBar.style.display = 'flex';
                 });
 
                 if (chat.recentHistory[chat.recentHistory.length - 1].role === 'assistant') {
-                    const popped = chat.recentHistory.pop();
-                    await deleteImagesForMessages([popped]);
+                    // A resposta antiga só é apagada de verdade (imagens incluídas)
+                    // DEPOIS que a substituta chega — uma falha da API não pode
+                    // custar a resposta anterior (achado: perda irreversível).
+                    popped = chat.recentHistory.pop();
                 }
                 // Sem 'else return': se a última mensagem for do usuário (geração
                 // interrompida antes de qualquer resposta), apenas reenvia.
+                // Limpa o status='error' da pergunta: após uma falha parcial o
+                // regenerate deixava a pergunta marcada e o buildAPIPayload a
+                // FILTRAVA — o request ia sem a pergunta (só system prompt na
+                // primeira troca).
+                if (chat.recentHistory.length > 0) {
+                    const lastMsg = chat.recentHistory[chat.recentHistory.length - 1];
+                    if (lastMsg && lastMsg.role === 'user') delete lastMsg.status;
+                }
                 await updateChatInDB(chat.id, c => {
                     if (Array.isArray(c.recentHistory) && c.recentHistory.length > 0 && c.recentHistory[c.recentHistory.length - 1].role === 'assistant') {
                         c.recentHistory.pop();
                     }
+                    if (Array.isArray(c.recentHistory) && c.recentHistory.length > 0) {
+                        const lastMsg = c.recentHistory[c.recentHistory.length - 1];
+                        if (lastMsg && lastMsg.role === 'user') delete lastMsg.status;
+                    }
                 });
                 await loadChat(chat.id);
-                await callAPIAndSave(chat, null);  
+                const res = await callAPIAndSave(chat, null).catch(err => {
+                    console.warn('[Regenerar] a chamada falhou:', err);
+                    return { ok: false };
+                });
+                if (res && res.ok === false) {
+                    // Falha antes da resposta nova: restaura a resposta anterior
+                    // no lugar do parcial da tentativa, em vez de perdê-la.
+                    if (Array.isArray(chat.recentHistory)) {
+                        let i = chat.recentHistory.length - 1;
+                        while (i >= 0 && chat.recentHistory[i] && chat.recentHistory[i].role === 'assistant') { chat.recentHistory.pop(); i--; }
+                        if (chat.recentHistory.length > 0) {
+                            const lastMsg = chat.recentHistory[chat.recentHistory.length - 1];
+                            if (lastMsg && lastMsg.role === 'user') delete lastMsg.status;
+                        }
+                        if (popped) chat.recentHistory.push(popped);
+                    }
+                    const fresh = await updateChatInDB(chat.id, c => {
+                        if (!Array.isArray(c.recentHistory)) return;
+                        let i = c.recentHistory.length - 1;
+                        while (i >= 0 && c.recentHistory[i] && c.recentHistory[i].role === 'assistant') { c.recentHistory.pop(); i--; }
+                        if (c.recentHistory.length > 0) {
+                            const lastMsg = c.recentHistory[c.recentHistory.length - 1];
+                            if (lastMsg && lastMsg.role === 'user') delete lastMsg.status;
+                        }
+                        if (popped) c.recentHistory.push(JSON.parse(JSON.stringify(popped)));
+                    });
+                    if (!fresh) await saveToDB('chats', chat);
+                    else {
+                        const memChat = allChats.find(c => c.id === chat.id);
+                        if (memChat) Object.assign(memChat, fresh);
+                    }
+                    await loadChat(chat.id);
+                } else if (popped) {
+                    await deleteImagesForMessages([popped]);
+                }
             } finally {
                 lockUI(false);
                 const msgInput = document.getElementById('messageInput');
@@ -3733,7 +3970,8 @@
 
             // RAG (MODO A), executado UMA vez por chamada: embedda a pergunta
             // atual 1x (cosseno sobre o índice do chat -> top-20 -> rerank Jev
-            // -> top-5 no prompt). Antes este bloco ficava DENTRO do laço acima
+            // -> gate de recuperação (#4) + resolução de conflitos (#5) ->
+            // top-5 no prompt). Antes este bloco ficava DENTRO do laço acima
             // e repetia a mesma recuperação/injeção para cada mensagem do
             // histórico (custo + contexto duplicados).
             try {
@@ -3748,21 +3986,31 @@
                 }
                 if (mode === 'embeddings' && perguntaAtual) {
                     const candidatos = await retrieveChunks(String(perguntaAtual).slice(0, 2000), 20, chatId);
-                    if (candidatos && candidatos.length > 0) {
-                        const top = await rerankChunksJe(candidatos, perguntaAtual, 5);
-                        if (top && top.length > 0) {
-                            const ragBlock = top.map((c, i) =>
-                                `[trecho ${i + 1} — ${c.docName || 'documento'}]${typeof c.jevScore === 'number' ? ` (relevância ${c.jevScore.toFixed(2)})` : ''}\n${c.text}`
-                            ).join('\n\n---\n\n');
-                            payload.push({
-                                role: 'user',
-                                content: [{ type: 'text', text: `\n\n--- TRECHOS RECUPERADOS (RAG) ---\nUse estes trechos como fonte principal para responder.\n\n${ragBlock}\n` }]
-                            });
-                            // Trechos usados, expostos ao chamador para o
-                            // groundedness pós-resposta (sem estado global).
-                            ragTrechos = top.map(c => c.text);
-                            console.log(`[RAG] ${candidatos.length} candidatos -> ${top.length} trechos injetados`);
-                        }
+                    let top = (candidatos && candidatos.length > 0) ? await rerankChunksJe(candidatos, perguntaAtual, 5) : [];
+                    // Gate de recuperação: follow-up curto sem contexto ("e no
+                    // item 5?") é a causa mais comum de busca vazia — retenta 1x
+                    // concatenando a pergunta anterior do usuário. Local, sem
+                    // chamada de rede; a proteção anti-alucinação fica no
+                    // groundedness pós-resposta (jevPosResposta).
+                    if ((top || []).length === 0 && isFollowUpCurto(perguntaAtual, slicedHistory)) {
+                        const perguntaCtx = contextoParaFollowUp(perguntaAtual, slicedHistory);
+                        const candCtx = await retrieveChunks(perguntaCtx.slice(0, 2000), 20, chatId);
+                        top = (candCtx && candCtx.length > 0) ? await rerankChunksJe(candCtx, perguntaCtx, 5) : [];
+                        if (top && top.length > 0) console.log('[RAG] gate: busca vazia recuperada com follow-up contextualizado');
+                    }
+                    top = await resolverConflitoTrechos(top, perguntaAtual); // resolução de conflitos
+                    if (top && top.length > 0) {
+                        const ragBlock = top.map((c, i) =>
+                            `[trecho ${i + 1} — ${c.docName || 'documento'}]${typeof c.jevScore === 'number' ? ` (relevância ${c.jevScore.toFixed(2)})` : ''}\n${c.text}`
+                        ).join('\n\n---\n\n');
+                        payload.push({
+                            role: 'user',
+                            content: [{ type: 'text', text: `\n\n--- TRECHOS RECUPERADOS (RAG) ---\nUse estes trechos como fonte principal para responder.\n\n${ragBlock}\n` }]
+                        });
+                        // Trechos usados, expostos ao chamador para o
+                        // groundedness pós-resposta (sem estado global).
+                        ragTrechos = top.map(c => c.text);
+                        console.log(`[RAG] ${candidatos.length} candidatos -> ${top.length} trechos injetados`);
                     }
                 }
             } catch (ragErr) {
@@ -3802,8 +4050,13 @@
             isRequestPending = locked;
             const sendBtn = document.getElementById('sendBtn');
             if (sendBtn) {
-                if (locked) {
-                    sendBtn.disabled = false;
+            if (locked) {
+                // O controller existe desde o início do modo "Parar": o Stop tem
+                // de funcionar também no pré-decisor/payload/RAG, antes de haver
+                // fetch algum (antes, clicar Parar nessa janela era no-op e a
+                // requisição saía mesmo assim).
+                if (!currentAbortController) currentAbortController = new AbortController();
+                sendBtn.disabled = false;
                     sendBtn.title = 'Parar geração';
                     sendBtn.classList.add('stop-mode');
                     sendBtn.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>`;
@@ -3882,6 +4135,13 @@
                         guardrailBypassOneShot = true;
                         handleSend();
                     });
+                    return;
+                }
+
+                // Stop clicado durante o pré-decisor: não envia nada. O controller
+                // abortado é descartado para o próximo envio nascer limpo.
+                if (currentAbortController && currentAbortController.signal.aborted) {
+                    currentAbortController = null;
                     return;
                 }
 
@@ -3966,7 +4226,7 @@
         const JEV_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v4/ai/evaluation-model';
         const JEV_TYPESAFE_URL = 'https://api.typesafe.ai/v1/systemone';
         // Carimbo de versão: confira no console (F12) se o roteador carregado é este.
-        console.log('[Auto Eco] roteador v10 carregado (Pro/Lite + effort pelo Jev BYOK direto do navegador: Vercel vck_ → Gateway, outra → TypeSafe; RAG em 2 modos: vetorial com chave / clássico sem chave; resposta parcial preservada em troca de chat/erro)');
+        console.log('[Auto Eco] roteador v11 carregado (Pro/Lite + effort pelo Jev BYOK direto do navegador: Vercel vck_ → Gateway, outra → TypeSafe; RAG em 2 modos: vetorial com chave / clássico sem chave; RAG v2: gate de recuperação + resolução de conflitos; resposta parcial preservada em troca de chat/erro)');
 
         function jevProviderFor(key) {
             return /^vck[_-]/.test(String(key || '')) ? 'gateway' : 'typesafe';
@@ -4384,6 +4644,9 @@
         }
         // Choice: retorna o candidato mais provável e a confiança nele
         function asChoice(v) {
+            if (v && typeof v === "object" && typeof v.choice === "string" && !v.probabilities && !v.distribution) {
+                return { top: v.choice, confidence: typeof v.confidence === "number" ? v.confidence : 1 };
+            }
             const dist = (v && v.distribution) ? v.distribution
                 : (v && v.probabilities) ? v.probabilities
                 : (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
@@ -4534,6 +4797,8 @@
             // regenerar/editar/retry chamam sem decisão e computam aqui.
             let decision = preDecision;
             if (!decision) decision = await computePreDecision(chat);
+            // Stop durante o pré-decisor: aborta antes de construir/enviar nada.
+            if (currentAbortController && currentAbortController.signal.aborted) return { ok: true };
             let modelo_real = decision.modelo_real || 'gpt-5.4-mini';
             // Effort vem da decisão (Jev escolhe para o mini E para o 5.4 no Pro)
             let esforco = decision.esforco || 'medium';
@@ -4545,6 +4810,8 @@
             // (sem raciocínio) é usado no 4.1-mini, que existe apenas no modo Lite.
             const SYSTEM_PROMPT = (modelo_real === 'gpt-4.1-mini') ? SYSTEM_PROMPT_FAST : SYSTEM_PROMPT_THINK;
             const built = await buildAPIPayload(chat.recentHistory, targetChatId);
+            // Stop durante a construção do payload/RAG: nada foi enviado ainda.
+            if (currentAbortController && currentAbortController.signal.aborted) return { ok: true };
             let payloadMessages = built.payload;
             // Trechos RAG injetados no payload (para o groundedness pós-resposta)
             const payloadRagTrechos = built.ragTrechos || null;
@@ -4574,9 +4841,12 @@
             // Salva o texto parcial de uma resposta interrompida (troca de chat
             // ou erro no stream): o que já chegou deixa de ser descartado.
             const savePartialAssistant = async (motivo) => {
-                const partialText = accumulatedReasoning
+                let partialText = accumulatedReasoning
                     ? `<think>${accumulatedReasoning}</think>\n${accumulatedContent}`
                     : accumulatedContent;
+                // Recusa acumulada sem texto normal também é conteúdo: sem isso,
+                // uma interrupção descartava a recusa já exibida ao usuário.
+                if (!partialText.trim() && accumulatedRefusal.trim()) partialText = accumulatedRefusal;
                 if (!partialText.trim()) return false;
                 const stored = `${partialText} [Geração interrompida — ${motivo}]`;
                 let freshChat = await updateChatInDB(targetChatId, c => {
@@ -4590,7 +4860,7 @@
                     await saveToDB('chats', freshChat);
                 }
                 const memChat = allChats.find(c => c.id === targetChatId);
-                if (memChat) memChat.recentHistory = freshChat.recentHistory;
+                if (memChat) Object.assign(memChat, freshChat);
                 return true;
             };
 
@@ -4667,7 +4937,7 @@
                     if (String(currentChatId) !== String(targetChatId)) {
                         try { await reader.cancel(); } catch(e) { console.warn('[Stream] falha ao cancelar reader (troca de chat):', e); }
                         await savePartialAssistant('troca de conversa');
-                        return;
+                        return { ok: true };
                     }
 
                     const { done, value } = await reader.read();
@@ -4704,7 +4974,7 @@
                         if (String(currentChatId) !== String(targetChatId)) {
                             try { await reader.cancel(); } catch(e) { console.warn('[Stream] falha ao cancelar reader (troca de chat):', e); }
                             await savePartialAssistant('troca de conversa');
-                            return;
+                            return { ok: true };
                         }
 
                         let currentThinking = null;
@@ -4858,7 +5128,7 @@
                 }
                 
                 const memChat = allChats.find(c => c.id === targetChatId);
-                if (memChat) memChat.recentHistory = freshChat.recentHistory;
+                if (memChat) Object.assign(memChat, freshChat);
                 
                 if (String(currentChatId) === String(targetChatId)) {
                     recalculateHistoryCharCount();
@@ -4878,6 +5148,8 @@
                     updateTokenCounter();
                 }
 
+                return { ok: true };
+
             } catch (error) {
                 if (error.name === 'AbortError') {
                     // Usuário cancelou via botão "Parar geração"
@@ -4887,6 +5159,7 @@
                     } else {
                         abortedContent = accumulatedContent;
                     }
+                    if (!abortedContent.trim() && accumulatedRefusal.trim()) abortedContent = accumulatedRefusal;
 
                     if (abortedContent.trim()) {
                         abortedContent += " [Geração interrompida]";
@@ -4901,7 +5174,7 @@
                             await saveToDB('chats', freshChat);
                         }
                         const memChat = allChats.find(c => c.id === targetChatId);
-                        if (memChat) memChat.recentHistory = freshChat.recentHistory;
+                        if (memChat) Object.assign(memChat, freshChat);
 
                         if (String(currentChatId) === String(targetChatId)) {
                             const parsedAborted = extractThinking(abortedContent);
@@ -4927,7 +5200,7 @@
                         renderRegenerateButton();
                         updateTokenCounter();
                     }
-                    return;
+                    return { ok: true };
                 }
 
                 botMsgDiv.remove();
@@ -4950,7 +5223,15 @@
                     }
                 }
                 const memChat = allChats.find(c => c.id === targetChatId);
-                if (memChat) memChat.recentHistory = freshChat.recentHistory;
+                if (memChat) Object.assign(memChat, freshChat);
+
+                // Índice da pergunta com erro: o histórico termina NELA neste
+                // instante (o parcial só é empurrado abaixo). O retry usa o
+                // índice para limpar só os parciais desta tentativa — sem isso,
+                // um "Tentar novamente" depois de novas mensagens apagaria a
+                // troca posterior.
+                const erroredIndex = Array.isArray(chat.recentHistory)
+                    ? chat.recentHistory.length - 1 : -1;
 
                 // Salva o texto parcial já recebido: um stream que caiu no meio
                 // da resposta não perde o conteúdo.
@@ -5012,6 +5293,21 @@
                             };
                             clearUserErrorStatus(retryChat.recentHistory);
                             await updateChatInDB(targetChatId, c => clearUserErrorStatus(c.recentHistory));
+                            // Retry limpo: remove os parciais de assistant acumulados
+                            // APÓS a pergunta com erro (e só eles — trocas posteriores
+                            // ficam intactas). Sem isso, o payload terminava num turno
+                            // assistant e o modelo continuava condicionalmente do texto
+                            // interrompido em vez de re-responder; a pergunta deixava de
+                            // ser a última mensagem (mídia/da pergunta caíam do payload)
+                            // e, com falha nova, os parciais se acumulavam.
+                            const trimPartialsAposErro = (h) => {
+                                if (!Array.isArray(h) || erroredIndex < 0 || erroredIndex >= h.length) return;
+                                if (!h[erroredIndex] || h[erroredIndex].role !== 'user') return;
+                                let i = h.length - 1;
+                                while (i >= erroredIndex && h[i] && h[i].role === 'assistant') { h.pop(); i--; }
+                            };
+                            trimPartialsAposErro(retryChat.recentHistory);
+                            await updateChatInDB(targetChatId, c => trimPartialsAposErro(c.recentHistory));
                             await loadChat(targetChatId);
                             await callAPIAndSave(retryChat, null);
                         } finally {
@@ -5028,8 +5324,10 @@
                     errorDiv.className = 'message bot';
                     errorDiv.style.color = 'var(--danger)';
                     errorDiv.textContent = `Erro: ${friendlyError(error)}`;
-                    document.getElementById('messagesInner').appendChild(errorDiv); 
+                    document.getElementById('messagesInner').appendChild(errorDiv);
                 }
+
+                return { ok: false, error };
             } finally {
                 currentAbortController = null;
             }
