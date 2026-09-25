@@ -2,7 +2,7 @@
 
 Chatbot web minimalista, sem build e sem instalação, com roteamento inteligente de modelos via Jev e RAG vetorial para documentos.
 
-Abra o `index.html`, configure sua chave e use — ou acesse a [versão publicada](https://54k41.github.io/darkforest-swordholder/).
+Abra o `index.html`, configure sua chave e use — ou acesse a [versão publicada](https://54k41.github.io/darkforest/).
 
 ![DarkForest](assets/screenshot.png)
 
@@ -46,6 +46,7 @@ Chaves e dados de uso permanecem no navegador sempre que possível.
 - **Parar funciona sempre**: o botão Parar cancela desde o pré-processamento (decisão de modelo, payload e RAG), antes de qualquer chamada à API — e nada é enviado depois de abortado.
 - **Persistência resiliente**: se o IndexedDB ficar temporariamente indisponível (ex.: atualização de versão aberta por outra aba), as escritas caem em memória e são reconciliadas no banco quando a conexão volta; nada enviado nesse intervalo se perde.
 - **Recusas interrompidas são salvas**: uma recusa do modelo exibida em streaming é persistida mesmo que a geração seja cancelada.
+- **Bolha em branco nunca vira sucesso**: se o modelo não retorna conteúdo (ou produz apenas raciocínio), a tentativa é tratada como erro com retry; respostas cortadas por limite de tokens recebem uma nota explícita de corte em vez de um texto que "termina do nada".
 
 ## Início rápido
 
@@ -91,13 +92,18 @@ Regras determinísticas no código complementam a decisão do Jev: no modo **Pro
 
 Na ausência de chave de embeddings, o chat opera em modo clássico: o documento é incluído integralmente no prompt, com controle de tamanho.
 
-Com uma chave válida (Gemini ou NVIDIA), o modo vetorial é ativado automaticamente:
+Com uma chave Gemini válida, o modo vetorial é ativado automaticamente:
 
 1. O PDF anexado é dividido em trechos (chunks).
-2. Cada trecho é convertido em embedding — `gemini-embedding-2` (1536 dimensões) ou `nvidia/nemotron-3-embed-1b` (512 dimensões) — com fila com limite de RPM/TPM.
-3. Os embeddings são armazenados em cache no IndexedDB, junto às conversas.
-4. A cada pergunta, a busca por similaridade de cosseno seleciona os 20 trechos mais próximos.
-5. O Jev reordena os candidatos e apenas os 5 trechos que respondem à pergunta entram no prompt.
+2. Cada trecho é convertido em embedding — `gemini-embedding-2` (1536 dimensões) — com fila com limite de RPM/TPM.
+3. Os embeddings são armazenados em cache no IndexedDB, escopados por conversa: a busca nunca cruza trechos de outras conversas.
+4. A cada pergunta, a busca por similaridade de cosseno seleciona os 20 trechos mais próximos do índice do chat.
+5. O Jev reordena os candidatos em lote (1 a 3 chamadas em vez de uma por trecho) e apenas os trechos com relevância acima de 0,5 entram no prompt — no máximo 5, cada um com a relevância indicada.
+
+A recuperação roda uma única vez por mensagem enviada (antes, repetia-se para cada mensagem do histórico), e o Jev atua em duas etapas extras do pipeline:
+
+- **Gate de recuperação**: follow-ups curtos ("e no item 5?") não têm termos suficientes para a busca — quando ela volta vazia, a pergunta é reenviada 1x concatenada com a pergunta anterior do usuário (reescrita local, sem chamada de rede).
+- **Resolução de conflitos**: se os dois trechos mais relevantes têm pontuações próximas, o Jev decide se são complementares ou conflitantes e descarta o de suporte mais fraco ou desatualizado.
 
 ## Auto Eco
 
@@ -115,9 +121,8 @@ O Auto Eco é a camada de avaliação e proteção do chat, construída sobre o 
 
 ### Opcional
 
-- **Gemini** (`AIza...` ou `AQ....`) — embeddings do RAG (`gemini-embedding-2`). Informe no campo de chave de embeddings, nas Configurações.
-- **NVIDIA** (`nvapi-...`) — provedor alternativo de embeddings (`nemotron-3-embed-1b`). Mesmo campo; o formato da chave determina o provedor.
-- **Jev** (`vck_...` do Vercel AI Gateway ou chave da TypeSafe AI) — roteamento Pro/Lite e rerank do RAG. Informe no campo "Jev" nas Configurações; a chamada vai direto do navegador ao provedor.
+- **Gemini** (`AIza...` ou `AQ....`) — embeddings do RAG (`gemini-embedding-2`). Informe no campo de chave de embeddings, nas Configurações. Chaves NVIDIA (`nvapi-...`) não são mais aceitas — os slots legados são limpos ao salvar a nova chave.
+- **Jev** (`vck_...` do Vercel AI Gateway ou chave da TypeSafe AI) — roteamento Pro/Lite, rerank e resolução de conflitos do RAG. Informe no campo "Jev" nas Configurações; a chamada vai direto do navegador ao provedor.
 
 ## Arquitetura
 
@@ -163,6 +168,7 @@ Modelo
 index.html       # Aplicação completa (HTML + CSS + JS), incluindo a camada Jev BYOK
 INSTRUCOES.md    # Guia de uso
 assets/          # Imagens (screenshot etc.)
+package.json     # Metadados do projeto
 .gitignore       # Ignora segredos e arquivos locais
 ```
 
